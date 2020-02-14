@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="mysr" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Option virtualFolders="includes\;src\;" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/mysr/mysr-debug.dll" prefix_auto="0" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="3" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Option createStaticLib="1" />
+				<Compiler>
+					<Add option="-Wall" />
+					<Add option="-m32" />
+					<Add option="-g" />
+					<Add option="-DBUILD_DLL" />
+				</Compiler>
+				<ExtraCommands>
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysql\lib" />
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr-debug.a  $(WORKSPACE_DIR)\mysql\lib" />
+				</ExtraCommands>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/mysr/mysr" prefix_auto="0" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="3" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Option createStaticLib="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-Wall" />
+					<Add option="-m32" />
+					<Add option="-DBUILD_DLL" />
+				</Compiler>
+				<ExtraCommands>
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysql\lib" />
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr.a  $(WORKSPACE_DIR)\mysql\lib" />
+				</ExtraCommands>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-DBUILD_DLL" />
+			<Add directory="$(WORKSPACE_DIR)/../common-c-libs/include" />
+			<Add directory="src/include" />
+			<Add directory="$(WORKSPACE_DIR)/mysql/include" />
+		</Compiler>
+		<Linker>
+			<Add directory="$(WORKSPACE_DIR)/mysql/lib" />
+			<Add option="-Wl,--enable-stdcall-fixup" />
+			<Add option="-s" />
+			<Add option="-m32" />
+			<Add option="-llibmysql" />
+			<Add library="user32" />
+			<Add library="wsock32" />
+		</Linker>
+		<Unit filename="../../common-c-libs/include/mold.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/include/source-macros.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/include/vprint.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/mold.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/vprint.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="mysr-dllmain.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/include/mysr-structs.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="src/include/mysr.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="src/mysr.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

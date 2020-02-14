@@ -1,0 +1,18 @@
+# these files should ALWAYS use linux line engings
+*.sh					eol=lf
+
+# these files should remain as-is based on the file as it was sent (treat them as binary)
+*.svg binary
+
+# we force git to consider all .h and .c files as text files.
+# some of them may contain binary-like sequences that git doesn't like.
+# is then tags the file as binary and never unsticks.
+*.h 		text
+vprint.h	text
+
+# do not change line endings of csv files
+*.csv		-text
+*.workspace -text
+*.layout 	-text
+*.cbp		-text
+*.depend	-text
