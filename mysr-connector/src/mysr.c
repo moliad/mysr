@@ -318,7 +318,9 @@ DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result){
 	int			 len=0;
 	int			 field_cnt=0;
 	int			 i;
-	
+	MYSQL_ROW 	row=0;
+	int			*col_types=NULL;  // will be allocated to an array or integers which represent the mold.c types of each column, by index.
+	                              // we will use this to properly type any results in the rebol molded values.  any unknown type, just gets returned as a string.
 	
 	vin("mysr_rebol_result()");
 	blk = make(MOLD_BLOCK);
@@ -342,8 +344,24 @@ DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result){
 			vprint ("Column %d: %s\n", i, col->name);
 			append ( column_names, build(MOLD_WORD, col->name) );
 		}
+		
+		//----------
+		// fetch the row data
+		while ((row = mysql_fetch_row(result))) {
+			for(i = 0; i < field_cnt; i++) 
+			{ 
+				append(blk, build(MOLD_TEXT, row[i]));
+				printf("%s ", row[i] ? row[i] : "NULL"); 
+			} 
+			printf("\n"); 
+		}		
 	}
 	mold(blk, resultbuffer, resultbuffersize, 0);
+
+	//-------------
+	// deallocate the whole data-tree
+	//-------------
+	// destroy(blk);
 
 	vout;
 	return resultbuffer;
@@ -354,6 +372,8 @@ DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result){
 //-     mysr_free_data()
 //--------------------------
 // purpose: free data allocated within mysr which was sent to client as a result.
+//
+// possibly deprecated since we use a reusable buffer for mold()
 //--------------------------
 DLL_EXPORT void mysr_free_data(void *data){
 	vin("mysr_free_data()");
