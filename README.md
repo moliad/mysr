@@ -30,6 +30,8 @@ There are very few steps and external dependencies, most of them required by mys
 
 * download lib2a so you can easily convert the .lib format to a compatible .a linking lib for GCC. You can find it here: https://code.google.com/archive/p/lib2a/downloads
 
+* run lib2a on the mysql\lib\libmysql.lib file in order to get a libmysql.a file.
+
 
 ### You will need these to USE the library
 
@@ -40,6 +42,27 @@ There are very few steps and external dependencies, most of them required by mys
 * mysql v5.7.25+ installed and running
 
 
+### Final Directory Tree
 
-once you have everything, if you place all the packages and files in the following directory tree, the code blocks project will be usable as-is!  It uses only relative paths for its setups.
+Once you have everything, if you place all the packages and files in the following directory tree, the code blocks project will be usable as-is!  It uses only relative paths for its setups.
+
+```
+git	
+	common-c-libs
+		include
+	mysr
+		LIB2A
+		mysql
+			include
+			lib
+		mysr-client
+		mysr-connector
+			src
+				include
+
+
+
+```
+
+
 
