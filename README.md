@@ -46,22 +46,28 @@ There are very few steps and external dependencies, most of them required by mys
 Once you have everything, if you place all the packages and files in the following directory tree, the code blocks project will be usable as-is!  It uses only relative paths for its setups.
 
 ```
-git	
-	common-c-libs
-		include
-	mysr
-		LIB2A
-		mysql
-			include
-			lib
-		mysr-client
-		mysr-connector
-			src
-				include
-
-
-
+git/
+    common-c-libs/
+        include/
+    mysr/
+        LIB2A/
+        mysql/
+            include/
+            lib/
+        mysr-client/
+        mysr-connector/
+            src/
+                include/
 ```
+
+
+## Setup Client test
+
+The mysr_client requires you to setup your mysql server instance used.  this includes setting up the host, user and passwd.
+
+Copy the `mysr\mysr-client\myser-usrpwd.template.h` file as `myser-usrpwd.h` and change the information within to suit your setup.
+
+Note that we include no values in the template to make sure no one uses a default and it becomes a security flaw.  You ***must*** put your values.
 
 
 
