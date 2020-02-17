@@ -4,7 +4,7 @@ An effort to provide full access to all features of mysql for Rebol and derivati
 
 The interface is setup using a shim dll which integrates an easy to use Rebol compatibility layer to send queries and load the results.
 
-We currently build the connector against v5.7.25 of the mysql libc sdk.
+We currently build the connector against v5.7.29 of the mysql libc sdk.
 
 There are very few steps and external dependencies, most of them required by mysql itself.
 
@@ -26,12 +26,11 @@ There are very few steps and external dependencies, most of them required by mys
 
 * copy the `\include\` and `\lib\` folder from the standard mysql installation (`C:\Program Files (x86)\MySQL\MySQL Server 5.7\ `) to your local dev setup (follow directory tree below).  We need to do this so you can write to it because Windows doesn't allow applications to write within `program files` folders, the actual path is aliased to another path.
 
-* delete the libmysql.lib from your copy of the mysql lib dir...  it confuses GCC.
-
 * download lib2a so you can easily convert the .lib format to a compatible .a linking lib for GCC. You can find it here: https://code.google.com/archive/p/lib2a/downloads
 
 * run lib2a on the mysql\lib\libmysql.lib file in order to get a libmysql.a file.
 
+* delete the libmysql.lib from your copy of the mysql lib dir...  it confuses GCC.
 
 ### You will need these to USE the library
 
@@ -39,7 +38,7 @@ There are very few steps and external dependencies, most of them required by mys
 
 * download the latest rebol slim libraries from github (especially the misc-libs, which is required for bulk support)
 
-* mysql v5.7.25+ installed and running
+* mysql v5.7.29+ installed and running
 
 
 ### Final Directory Tree
