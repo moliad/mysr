@@ -41,10 +41,14 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add option="-m32" />
 			<Add directory="../mysr-connector/src/include" />
 			<Add directory="../mysql/include" />
 			<Add directory="../../common-c-libs/include" />
 		</Compiler>
+		<Linker>
+			<Add option="-m32" />
+		</Linker>
 		<Unit filename="../../common-c-libs/vprint.c">
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />
