@@ -247,9 +247,9 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
 			//--------------
 			// convert result to a REBOL-Loadable dataset
 			//--------------
-			mysr_probe_result(mysql_result);
+			//mysr_probe_result(mysql_result);
 
-			rebstr = mysr_rebol_result(mysql_result);
+			rebstr = mysr_mold_result(mysql_result);
 			printf("%s", rebstr);
 
 			mysql_free_result(mysql_result);
@@ -297,7 +297,7 @@ void mysr_probe_result(MYSQL_RES *result){
 
 
 //--------------------------
-//-     mysr_rebol_result()
+//-     mysr_mold_result()
 //--------------------------
 // purpose:  converts a MYSQL_RES to a Rebol Bulk table.
 //
@@ -311,7 +311,7 @@ void mysr_probe_result(MYSQL_RES *result){
 //
 // tests:
 //--------------------------
-DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result){
+DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 	MoldValue	*blk=NULL;
 	MoldValue	*header=NULL;
 	MoldValue	*column_names=NULL;
@@ -322,7 +322,7 @@ DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result){
 	int			*col_types=NULL;  // will be allocated to an array or integers which represent the mold.c types of each column, by index.
 	                              // we will use this to properly type any results in the rebol molded values.  any unknown type, just gets returned as a string.
 	
-	vin("mysr_rebol_result()");
+	vin("mysr_mold_result()");
 	blk = make(MOLD_BLOCK);
 	header = make (MOLD_BLOCK);
 	column_names = make (MOLD_BLOCK);
@@ -357,6 +357,7 @@ DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result){
 		}		
 	}
 	mold(blk, resultbuffer, resultbuffersize, 0);
+	
 
 	//-------------
 	// deallocate the whole data-tree
