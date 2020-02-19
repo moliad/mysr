@@ -5,7 +5,7 @@
 // date:    2020-02-14
 // version: 1.0.1
 //
-// license: APACHE v2.0 
+// license: APACHE v2.0
 //          https://www.apache.org/licenses/LICENSE-2.0
 //
 // purpose: main header for mysr, a mysql rebol connector using native C lib interface.
@@ -47,7 +47,6 @@ DLL_EXPORT int mysr_init();
 //-     mysr_connect()
 //--------------------------
 DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd );
-
 
 
 //-                                                                                                       .
