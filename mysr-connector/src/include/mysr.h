@@ -97,7 +97,7 @@ void mysr_probe_result(MYSQL_RES *result);
 //--------------------------
 //-     mysr_rebol_result()
 //--------------------------
-DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result);
+DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result);
 
 
 //--------------------------

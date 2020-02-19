@@ -45,6 +45,20 @@ char* resultbuffer=NULL;
 int resultbuffersize = 0;
 
 
+//--------------------------
+//- column_types:
+//
+// points to an array of int which stores types of each column.  this is pre-allocated to 256 columns wide, but will scale according to queries, run-time.
+//--------------------------
+int *column_types = 0;
+
+//--------------------------
+//- column_types_array_size:
+//
+// size of currently allocated column_types array
+//--------------------------
+int column_types_array_size = 0;
+
 
 
 //-                                                                                                       .
@@ -171,6 +185,8 @@ DLL_EXPORT int mysr_init(int buffersize){
 	if (resultbuffer){
 		resultbuffersize = buffersize;
 	}
+	
+	column_types = calloc(1, 256 * sizeof(int));
 	
 
 	vprint("MySQL client info: %s", mysql_get_client_info())
@@ -319,8 +335,6 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 	int			 field_cnt=0;
 	int			 i;
 	MYSQL_ROW 	row=0;
-	int			*col_types=NULL;  // will be allocated to an array or integers which represent the mold.c types of each column, by index.
-	                              // we will use this to properly type any results in the rebol molded values.  any unknown type, just gets returned as a string.
 	
 	vin("mysr_mold_result()");
 	blk = make(MOLD_BLOCK);
