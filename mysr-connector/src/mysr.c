@@ -198,6 +198,39 @@ DLL_EXPORT int mysr_init(int buffersize){
 
 
 
+//--------------------------
+//- mysr_tracelog()
+//--------------------------
+// purpose:  generates a trace log on disk, given an absolute filepath.
+//
+// inputs:   
+//
+// returns:  0 or 1 depending on if we where able to open filepath.
+//
+// notes:    - folder of given path must exist.
+//           - automatically activates vloging.
+//           - CAN BE CALLED BEFORE mysr_init() !!!
+//           - if called from REBOL, BE SURE not to reset the word holding the path to another value or it will be recycled and OUR pointer will be corrupted.
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_tracelog (
+	char* filepath
+){
+	vin("mysr_tracelog()");
+	
+	vlogpath = filepath; 
+	vlogreset;
+	vlogon;
+	
+	vout;
+	return (vlogfile != NULL);
+}
+
+
+
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
@@ -247,9 +280,8 @@ DLL_EXPORT const char* mysr_server_info(MysrSession *session){
 // tests:
 //--------------------------
 DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
-	char *result=NULL;
 	MYSQL_RES *mysql_result=NULL;
-	char *rebstr=NULL;
+	char *molded_str=NULL;
 
 	vin("mysr_list_dbs()");
 
@@ -265,15 +297,15 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
 			//--------------
 			//mysr_probe_result(mysql_result);
 
-			rebstr = mysr_mold_result(mysql_result);
-			printf("%s", rebstr);
+			molded_str = mysr_mold_result(mysql_result);
+			vprint("%s", molded_str);
 
 			mysql_free_result(mysql_result);
 		}
 	}
 
 	vout;
-	return result;
+	return molded_str;
 }
 
 
