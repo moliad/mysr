@@ -49,6 +49,10 @@
 		<Linker>
 			<Add option="-m32" />
 		</Linker>
+		<Unit filename="../../common-c-libs/clibs_cast.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="../../common-c-libs/vprint.c">
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />
