@@ -16,20 +16,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mysr.h"
+#include "clibs_cast.h"
 
 #define VERBOSE
 
 #include "vprint.h"
 //-----------
-// this file doesn't exist in the repository and is part of the .gitignore.  
+// this file doesn't exist in the repository and is part of the .gitignore.
 // copy the mysr-usrpwd.h.template file and change the usr and pwd defines to those
 // of your local DB install.
 //-----------
-#include "mysr-usrpwd.h" 
+#include "mysr-usrpwd.h"
 
 
 int main(){
 	int len=0;
+	int bufsize = 100;
+	char buffer[bufsize];
+
+	von;
+	vin ("MAIN()");
 	MysrSession  *session = NULL;
 	int success=0;
 	char *list=NULL;
@@ -43,8 +49,17 @@ int main(){
 	vprint ("connected to localhost mysql");
 	list = mysr_list_dbs(session, NULL);
 	vstr(list);
-	
 
 	printf("%i", success);
+	vprint("-----");
+	len = i32_to_charptr( 34, buffer, bufsize );
+	vnum(len);
+	if (len < bufsize){
+		buffer[len] = 0;
+		vprint("'%i' == '%s'", 34, buffer);
+	}else{
+		vprint("error buffer too small");
+	}
+	vout
 	return 0;
 }

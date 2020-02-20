@@ -40,3 +40,4 @@ dependencies/
 # Code::Blocks specific files we don't want to share.
 *.layout
 *.depend
+/mysr-connector/mysr-tracelog.txt
