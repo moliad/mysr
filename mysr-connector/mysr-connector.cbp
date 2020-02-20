@@ -21,6 +21,8 @@
 					<Add option="-DBUILD_DLL" />
 				</Compiler>
 				<ExtraCommands>
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysr-libs" />
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr-debug.a  $(WORKSPACE_DIR)\mysr-libs" />
 					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysql\lib" />
 					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr-debug.a  $(WORKSPACE_DIR)\mysql\lib" />
 				</ExtraCommands>
@@ -39,6 +41,8 @@
 					<Add option="-DBUILD_DLL" />
 				</Compiler>
 				<ExtraCommands>
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysr-libs" />
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr.a  $(WORKSPACE_DIR)\mysr-libs" />
 					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysql\lib" />
 					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr.a  $(WORKSPACE_DIR)\mysql\lib" />
 				</ExtraCommands>
