@@ -63,7 +63,7 @@ do %../slim-libs/slim/slim.r
 slim/vexpose
 slim/add-path clean-path %mysr-libs/
 
-slim/open/expose 'mysr none [ connect  list-dbs ]
+slim/open/expose 'mysr none [ connect  list-dbs sql: mysql]
 von
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
@@ -86,6 +86,10 @@ vprint "testing mysr dll... extpecting result of 10"
 session: connect "localhost" "" "root" "123456"
 data: list-dbs session
 v?? data
+
+
+vprobe sql "use inmail"
+vprobe sql "describe logs;"
 
 ask "..."
 

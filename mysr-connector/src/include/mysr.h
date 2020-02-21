@@ -61,22 +61,6 @@ DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd
 DLL_EXPORT const char* mysr_server_info(MysrSession *session);
 
 
-//--------------------------
-//-     mysr_list_db()
-//--------------------------
-// purpose:  list all the databases on the server
-//
-// inputs:
-//
-// returns:
-//
-// notes:    use mysr_free_data() on returned string.
-//
-// to do:
-//
-// tests:
-//--------------------------
-char *mysr_list_dbs(MysrSession *session, char *filter);
 
 
 //--------------------------
@@ -84,6 +68,23 @@ char *mysr_list_dbs(MysrSession *session, char *filter);
 //--------------------------
 void mysr_probe_result(MYSQL_RES *result);
 
+
+
+
+//--------------------------
+//-     mysr_list_db()
+//--------------------------
+// purpose:  list all the databases on the server
+//--------------------------
+char *mysr_list_dbs(MysrSession *session, char *filter);
+
+
+//--------------------------
+//-     mysr_query()
+//--------------------------
+// purpose:  send query to current connection.
+//--------------------------
+DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string);
 
 
 //-                                                                                                       .

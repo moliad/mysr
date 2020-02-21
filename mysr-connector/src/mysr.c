@@ -41,25 +41,26 @@ char* resultbuffer=NULL;
 
 
 //--------------------------
-//- resultbuffersize:
+//-     resultbuffersize:
 //
 //--------------------------
 int resultbuffersize = 0;
 
 
 //--------------------------
-//- column_types:
+//-     column_types:
 //
 // points to an array of int which stores types of each column.  this is pre-allocated to 256 columns wide, but will scale according to queries, run-time.
 //--------------------------
 int *column_types = 0;
 
+
 //--------------------------
-//- column_types_array_size:
+//-     column_types_array_size:
 //
 // size of currently allocated column_types array
 //--------------------------
-int column_types_array_size = 0;
+int column_types_array_size = 256;
 
 
 
@@ -240,7 +241,7 @@ DLL_EXPORT int mysr_tracelog (
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
-//- DB INTROSPECTION FUNCTIONS
+//- DB QUERY FUNCTIONS
 //
 //-----------------------------------------------------------------------------------------------------------
 //--------------------------
@@ -279,7 +280,7 @@ DLL_EXPORT const char* mysr_server_info(MysrSession *session){
 //
 // returns:
 //
-// notes:    use mysr_free_data() on returned string.
+// notes:    
 //
 // to do:
 //
@@ -302,7 +303,6 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
 			// convert result to a REBOL-Loadable dataset
 			//--------------
 			//mysr_probe_result(mysql_result);
-
 			molded_str = mysr_mold_result(mysql_result);
 			vprint("%s", molded_str);
 
@@ -313,6 +313,54 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
 	vout;
 	return molded_str;
 }
+
+
+//--------------------------
+//-     mysr_query()
+//--------------------------
+// purpose:  send query to current connection.
+//--------------------------
+DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
+	vin("mysr_query()");
+	MYSQL_RES *result;
+	unsigned int num_fields;
+	unsigned int num_rows;
+	char *molded_str=NULL;
+
+	vprint(query_string);
+
+	if (mysql_query(session->connection, query_string)){
+		//------
+		// error
+		//------
+		vprint ("MySQL Query ERROR! %s", mysql_error(session->connection));
+		vout;
+		return NULL;
+	} else {
+		 // query succeeded, process any data returned by it
+		result = mysql_store_result(session->connection);
+		if (result) {
+			// there are rows
+			
+			molded_str = mysr_mold_result(result);
+		} else {
+			// mysql_store_result() returned nothing; should it have?
+			if(mysql_field_count(session->connection) == 0) {
+				// query does not return data
+				// (it was not a SELECT)
+				num_rows = mysql_affected_rows(session->connection);
+				vprint("Query affected %i rows", num_rows);
+			} else {
+				// mysql_store_result() should have returned data
+				vprint ("MySQL Query ERROR! %s", mysql_error(session->connection));
+			}
+		}
+	}
+	vout;
+	return molded_str;
+}
+
+
 
 
 
@@ -479,6 +527,8 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 	MoldValue	*blk=NULL;
 	MoldValue	*header=NULL;
 	MoldValue	*column_names=NULL;
+	MoldValue	*column_count=NULL;
+	MoldValue   *mv=NULL;
 	int			 len=0;
 	int			 field_cnt=0;
 	int			 i;
@@ -488,18 +538,29 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 	blk = make(MOLD_BLOCK);
 	header = make (MOLD_BLOCK);
 	column_names = make (MOLD_BLOCK);
+	column_count = make (MOLD_INT);
 	append(header, build( MOLD_SET_WORD, "columns" ));
-	append (header, column_names);
-	
+	append(header, column_count);
+	append(header, build( MOLD_SET_WORD, "labels" ));
+	append(header, column_names);
+	column_count->newline = TRUE;
 	// add bulk header
 	append(blk, header);
-	vprint("result is %i chars long", len );
+	//vprint("result is %i chars long", len );
 
 	if (result == NULL){
 		vprint ("ERROR: NULL result given as argument");
 	} else {
 		field_cnt = mysql_num_fields(result);
 		vprint("Number of columns: %d\n", field_cnt);
+		
+		if (field_cnt >  column_types_array_size){
+			vprint ("ERROR! Too many columns in result set");
+			vout;
+			return NULL;
+		}
+		column_count->value = field_cnt;
+		
 		for (i=0; i < field_cnt; ++i){
 			/* col describes i-th column of the table */
 			MYSQL_FIELD *col = mysql_fetch_field_direct(result, i);
@@ -507,22 +568,28 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 			append ( column_names, build(MOLD_WORD, col->name) );
 			
 			vprint ("Column type %i\n", col->type);
-			//switch col->type;
-			
+			column_types[i] = col->type;
 		}
 		
 		//----------
 		// fetch the row data
+		vprint ("FETCHING DATA")
 		while ((row = mysql_fetch_row(result))) {
 			for(i = 0; i < field_cnt; i++) 
 			{ 
-				append(blk, build(MOLD_TEXT, row[i]));
-				printf("%s ", row[i] ? row[i] : "NULL"); 
+				if (row[i]){
+					append(blk, mv = build(MOLD_TEXT, row[i]));
+				}else{
+					append(blk, mv = make(MOLD_NONE));
+				}
+				printf("%s , " , (row[i] ? row[i] : "NULL")); 
 			} 
-			printf("\n"); 
+			mv->newline = TRUE;
+			printf("\n---------------------\n"); 
 		}		
 	}
 	mold(blk, resultbuffer, resultbuffersize, 0);
+	dismantle(blk);
 	
 
 	//-------------

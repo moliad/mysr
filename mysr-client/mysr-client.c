@@ -35,12 +35,13 @@ int main(){
 	int bufsize = 100;
 	char buffer[bufsize];
 	MoldValue *dmv=NULL;
+	MoldValue *mv=NULL;
+	char *list=NULL;
+	int success=0;
 
 	von;
 	vin ("MAIN()");
 	MysrSession  *session = NULL;
-	int success=0;
-	char *list=NULL;
 	vprint("-----------------------------");
 	vprint("   mysr client test v1.0.1");
 	vprint("-----------------------------\n");
@@ -50,20 +51,19 @@ int main(){
 	session = mysr_connect(MYSR_HOST, MYSR_DB, MYSR_USR, MYSR_PWD);
 	vprint ("connected to localhost mysql");
 	list = mysr_list_dbs(session, NULL);
-	vstr(list);
-
-	printf("%i", success);
-	vprint("-----");
-		
-	dmv = make(MOLD_DECIMAL);
-	dmv->decimal = 1234.1234567890;
-	len = mold(dmv, buffer, bufsize, 0);
-	vnum(len);
-	if (len){
-		vprint(buffer);
-	}else{
-		vprint("error buffer too small");
-	}
+	
+	list=mysr_query(session, "SHOW DATABASES;");
+	vprint(list);
+	
+	list=mysr_query(session, "USE inmail;");
+	vprint(list);
+	
+	list=mysr_query(session, "describe logs;");
+	vprint(list);
+	
+	
+	
+	
 	vout
 	return 0;
 }

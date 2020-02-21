@@ -181,18 +181,6 @@ slim/register [
 		return: [integer!]
 	] mysr.dll "test_dll"
 
-
-	;--------------------------
-	;- mysr.list-dbs()
-	;
-	;--------------------------
-	mysr.list-dbs: make routine! [
-		session [integer!]
-		filter  [string!]
-		return: [string!]
-	] mysr.dll "mysr_list_dbs"
-
-
 	;--------------------------
 	;- mysr.init()
 	;
@@ -225,6 +213,28 @@ slim/register [
 		return: [integer!]
 	] mysr.dll "mysr_tracelog"
 
+
+	;--------------------------
+	;- mysr.list-dbs()
+	;
+	;--------------------------
+	mysr.list-dbs: make routine! [
+		session [integer!]
+		filter  [string!]
+		return: [string!]
+	] mysr.dll "mysr_list_dbs"
+
+
+
+	;--------------------------
+	;-     mysr.query()
+	;
+	;--------------------------
+	mysr.query: make routine! [
+		session [integer!]
+		query [string!]
+		return: [string!]
+	] mysr.dll "mysr_query"
 
 
 	;-                                                                                                       .
@@ -338,10 +348,46 @@ slim/register [
 		probe data
 		result: load data
 		vout
-		result
+		first reduce [result result: data: none]
 	]
 
 
+	;--------------------------
+	;-     mysql()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	mysql: funcl [
+		query [string! block!]
+	][
+		vin "mysql()"
+		session: any [ session default-session ]
+		unless session [
+			throw-on-error [
+				to-error "list-dbs() must connect to server first"
+				none
+			]
+		]
+		if block? query [
+			query: rejoin query
+		]
+		
+		data: mysr.query session query
+		result: load data
+		vout
+		
+		first reduce [result result: data: none]
+	]
 
 ]
 
