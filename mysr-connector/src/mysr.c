@@ -14,9 +14,11 @@
 //------------------------------------------------
 #include "dll-export.h"
 #include "mysr.h"
+#include "mold.h"
 
 #define VERBOSE
 #include "vprint.h"
+#include "binary_log_types.h"
 
 
 
@@ -186,7 +188,11 @@ DLL_EXPORT int mysr_init(int buffersize){
 		resultbuffersize = buffersize;
 	}
 	
-	column_types = calloc(1, 256 * sizeof(int));
+	column_types = calloc(1, column_types_array_size * sizeof(int));
+	if (column_types == NULL){
+		// make sure the actual array size is reflected.
+		column_types_array_size =0;
+	}
 	
 
 	vprint("MySQL client info: %s", mysql_get_client_info())
@@ -199,7 +205,7 @@ DLL_EXPORT int mysr_init(int buffersize){
 
 
 //--------------------------
-//- mysr_tracelog()
+//-     mysr_tracelog()
 //--------------------------
 // purpose:  generates a trace log on disk, given an absolute filepath.
 //
@@ -316,6 +322,116 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
 //- REBOL RETURN DATA MANAGEMENT
 //
 //-----------------------------------------------------------------------------------------------------------
+
+
+//--------------------------
+//-     map_sql_type()
+//--------------------------
+// purpose:  
+//
+// inputs:   
+//
+// returns:  a MOLD type 
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+int map_sql_type(int sqltype){
+	int mold_type = 0;
+	vin("map_sql_type()");
+	switch (sqltype){
+		//---
+		// floating point
+		case MYSQL_TYPE_FLOAT:
+		case MYSQL_TYPE_DOUBLE:
+		case MYSQL_TYPE_NEWDECIMAL:
+		case MYSQL_TYPE_DECIMAL:
+			mold_type = MOLD_DECIMAL;
+			break;
+			
+		//---
+		// integers
+		case MYSQL_TYPE_TINY:
+		case MYSQL_TYPE_SHORT:
+		case MYSQL_TYPE_LONG:
+		case MYSQL_TYPE_INT24:
+			mold_type = MOLD_INT;
+			break;
+			
+		//---
+		// URL (we store the whole 64bit value as a url, using the scheme as the type)
+		//
+		// ex:  longlong:2137823465834587456
+		case MYSQL_TYPE_LONGLONG:
+			mold_type = MOLD_LITERAL;
+			break;
+		
+		//---
+		// boolean
+		case MYSQL_TYPE_NULL:
+			mold_type = MOLD_NONE;
+			break;
+			
+		//---
+		// dates
+		case MYSQL_TYPE_TIMESTAMP:
+		case MYSQL_TYPE_DATE:
+		case MYSQL_TYPE_TIME:
+		case MYSQL_TYPE_DATETIME:
+		case MYSQL_TYPE_YEAR:
+		case MYSQL_TYPE_NEWDATE:
+		case MYSQL_TYPE_TIMESTAMP2:
+		case MYSQL_TYPE_DATETIME2:
+		case MYSQL_TYPE_TIME2:
+			mold_type = MOLD_LITERAL;
+			break;
+			
+		//---
+		// string
+		case MYSQL_TYPE_VARCHAR:
+		case MYSQL_TYPE_JSON:
+		case MYSQL_TYPE_VAR_STRING:
+		case MYSQL_TYPE_STRING:
+			mold_type = MOLD_TEXT;
+			break;
+		
+		//---
+		// charset
+		case MYSQL_TYPE_BIT:
+			mold_type = MOLD_LITERAL;
+			break;
+		
+		//---
+		// issue
+		case MYSQL_TYPE_ENUM:
+			mold_type = MOLD_TEXT;
+			break;
+			
+		//---
+		// binary
+		case MYSQL_TYPE_TINY_BLOB:
+		case MYSQL_TYPE_MEDIUM_BLOB:
+		case MYSQL_TYPE_LONG_BLOB:
+		case MYSQL_TYPE_BLOB:
+			mold_type = MOLD_INT;
+			break;
+		
+		//---
+		// block
+		case MYSQL_TYPE_SET:         //(list of tokens)
+		case MYSQL_TYPE_GEOMETRY:
+			mold_type = MOLD_BLOCK;
+			break;
+	}
+	vout;
+	return mold_type;
+}
+
+
+
 //--------------------------
 //-     mysr_probe_result()
 //--------------------------
@@ -389,6 +505,10 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 			MYSQL_FIELD *col = mysql_fetch_field_direct(result, i);
 			vprint ("Column %d: %s\n", i, col->name);
 			append ( column_names, build(MOLD_WORD, col->name) );
+			
+			vprint ("Column type %i\n", col->type);
+			//switch col->type;
+			
 		}
 		
 		//----------

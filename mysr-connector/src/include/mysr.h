@@ -18,7 +18,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #include "mysql.h"          // all mysql declarations.
-#include "mold.h"
+//#include "mold.h"
 #include "mysr-structs.h"   // all mysql declarations.
 #include "dll-export.h"     // DLL import/export switch handling
 

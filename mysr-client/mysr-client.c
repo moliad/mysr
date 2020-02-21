@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mysr.h"
+#include "mold.h"
 #include "clibs_cast.h"
 
 #define VERBOSE
@@ -33,6 +34,7 @@ int main(){
 	int len=0;
 	int bufsize = 100;
 	char buffer[bufsize];
+	MoldValue *dmv=NULL;
 
 	von;
 	vin ("MAIN()");
@@ -52,11 +54,13 @@ int main(){
 
 	printf("%i", success);
 	vprint("-----");
-	len = i32_to_charptr( 34, buffer, bufsize );
+		
+	dmv = make(MOLD_DECIMAL);
+	dmv->decimal = 1234.1234567890;
+	len = mold(dmv, buffer, bufsize, 0);
 	vnum(len);
-	if (len < bufsize){
-		buffer[len] = 0;
-		vprint("'%i' == '%s'", 34, buffer);
+	if (len){
+		vprint(buffer);
 	}else{
 		vprint("error buffer too small");
 	}

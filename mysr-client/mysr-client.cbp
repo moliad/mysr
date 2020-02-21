@@ -53,6 +53,13 @@
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />
 		</Unit>
+		<Unit filename="../../common-c-libs/include/mold.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/mold.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="../../common-c-libs/vprint.c">
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />

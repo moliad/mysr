@@ -8,7 +8,7 @@
 		<Option virtualFolders="includes\;src\;" />
 		<Build>
 			<Target title="Debug">
-				<Option output="bin/Debug/mysr/mysr-debug.dll" prefix_auto="0" extension_auto="1" />
+				<Option output="bin/Debug/mysr/mysr-debug" prefix_auto="0" extension_auto="1" />
 				<Option object_output="obj/Debug/" />
 				<Option type="3" />
 				<Option compiler="gcc" />
@@ -55,14 +55,21 @@
 			<Add directory="$(WORKSPACE_DIR)/mysql/include" />
 		</Compiler>
 		<Linker>
-			<Add directory="$(WORKSPACE_DIR)/mysql/lib" />
 			<Add option="-Wl,--enable-stdcall-fixup" />
 			<Add option="-s" />
 			<Add option="-m32" />
 			<Add option="-llibmysql" />
 			<Add library="user32" />
 			<Add library="wsock32" />
+			<Add directory="$(WORKSPACE_DIR)/mysql/lib" />
 		</Linker>
+		<Unit filename="../../common-c-libs/clibs_cast.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/include/clibs_cast.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
 		<Unit filename="../../common-c-libs/include/mold.h">
 			<Option virtualFolder="includes/" />
 		</Unit>
