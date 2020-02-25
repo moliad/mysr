@@ -5,7 +5,7 @@
 // date:    2020-02-14
 // version: 1.0.1
 //
-// license: APACHE v2.0 
+// license: APACHE v2.0
 //          https://www.apache.org/licenses/LICENSE-2.0
 //
 // purpose: main header for mysr, a mysql rebol connector using native C lib interface.
@@ -18,7 +18,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #include "mysql.h"          // all mysql declarations.
-#include "mold.h"
+//#include "mold.h"
 #include "mysr-structs.h"   // all mysql declarations.
 #include "dll-export.h"     // DLL import/export switch handling
 
@@ -38,24 +38,38 @@ DLL_EXPORT int test_dll (char *text, int val);
 
 
 //--------------------------
-//-     mysr_init()
-//--------------------------
-DLL_EXPORT int mysr_init();
-
-
-//--------------------------
 //-     mysr_connect()
 //--------------------------
 DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd );
 
 
+//--------------------------
+//-     mysr_init()
+//--------------------------
+DLL_EXPORT int mysr_init();
+
+//--------------------------
+//-     mysr_tracelog()
+//--------------------------
+
+//--------------------------
+DLL_EXPORT int mysr_tracelog (char* filepath);
+
 
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
-//- DB INTROSPECTION FUNCTIONS
+//- DB QUERY FUNCTIONS
 //
 //-----------------------------------------------------------------------------------------------------------
+
+
+//--------------------------
+//-     mysr_quote()
+//--------------------------
+DLL_EXPORT int mysr_quote(MysrSession *session, char* src, char* result, int srclen, char context);
+	
+
 //--------------------------
 //-     mysr_server_info()
 //--------------------------
@@ -63,28 +77,25 @@ DLL_EXPORT const char* mysr_server_info(MysrSession *session);
 
 
 //--------------------------
+//-     mysr_probe_result()
+//--------------------------
+void mysr_probe_result(MYSQL_RES *result);
+
+
+//--------------------------
 //-     mysr_list_db()
 //--------------------------
 // purpose:  list all the databases on the server
-//
-// inputs:
-//
-// returns:
-//
-// notes:    use mysr_free_data() on returned string.
-//
-// to do:
-//
-// tests:
 //--------------------------
 char *mysr_list_dbs(MysrSession *session, char *filter);
 
 
 //--------------------------
-//-     mysr_probe_result()
+//-     mysr_query()
 //--------------------------
-void mysr_probe_result(MYSQL_RES *result);
-
+// purpose:  send query to current connection.
+//--------------------------
+DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string);
 
 
 //-                                                                                                       .
@@ -97,7 +108,7 @@ void mysr_probe_result(MYSQL_RES *result);
 //--------------------------
 //-     mysr_rebol_result()
 //--------------------------
-DLL_EXPORT char *mysr_rebol_result(MYSQL_RES *result);
+DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result);
 
 
 //--------------------------
