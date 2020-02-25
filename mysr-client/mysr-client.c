@@ -32,12 +32,14 @@
 
 int main(){
 	int len=0;
-	int bufsize = 100;
-	char buffer[bufsize];
-	MoldValue *dmv=NULL;
-	MoldValue *mv=NULL;
+	// int bufsize = 100;
+	//char buffer[bufsize];
+	//MoldValue *dmv=NULL;
+	//MoldValue *mv=NULL;
 	char *list=NULL;
 	int success=0;
+	
+	int mysql_query_buffer_size = 10000000;
 
 	von;
 	vin ("MAIN()");
@@ -47,19 +49,24 @@ int main(){
 	vprint("-----------------------------\n");
 	len = test_dll("haha", 5);
 	vprint("test: %i", len);
-	success = mysr_init(10000000);  // 10MB
-	session = mysr_connect(MYSR_HOST, MYSR_DB, MYSR_USR, MYSR_PWD);
-	vprint ("connected to localhost mysql");
-	list = mysr_list_dbs(session, NULL);
+	success = mysr_init(mysql_query_buffer_size);  // 10MB
 	
-	list=mysr_query(session, "SHOW DATABASES;");
-	vprint(list);
-	
-	list=mysr_query(session, "USE inmail;");
-	vprint(list);
-	
-	list=mysr_query(session, "describe logs;");
-	vprint(list);
+	if (success){
+		session = mysr_connect(MYSR_HOST, MYSR_DB, MYSR_USR, MYSR_PWD);
+		vprint ("connected to localhost mysql");
+		list = mysr_list_dbs(session, NULL);
+		
+		list=mysr_query(session, "SHOW DATABASES;");
+		vprint(list);
+		
+		list=mysr_query(session, "USE inmail;");
+		vprint(list);
+		
+		list=mysr_query(session, "describe logs;");
+		vprint(list);
+	}else{
+		printf("ERROR: unable to initialise a buffer of %i\n\n bytes", mysql_query_buffer_size );
+	}
 	
 	
 	

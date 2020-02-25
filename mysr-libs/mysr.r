@@ -124,6 +124,15 @@ slim/register [
 		10'000'000
 	]
 	
+	
+	;--------------------------
+	;-     quote-buffer:
+	;
+	; used (and reused) by function escape-sql()
+	;--------------------------
+	quote-buffer: ""
+	
+	
 
 
 	;-                                                                                                       .
@@ -172,7 +181,7 @@ slim/register [
 	;-----------------------------------------------------------------------------------------------------------
 
 	;--------------------------
-	;- mysr.test()
+	;-     mysr.test()
 	;
 	;--------------------------
 	mysr.test: make routine! [
@@ -182,7 +191,7 @@ slim/register [
 	] mysr.dll "test_dll"
 
 	;--------------------------
-	;- mysr.init()
+	;-     mysr.init()
 	;
 	;--------------------------
 	mysr.init: make routine! [
@@ -192,7 +201,7 @@ slim/register [
 
 
 	;--------------------------
-	;- mysr.connect()
+	;-     mysr.connect()
 	;
 	;--------------------------
 	mysr.connect: make routine! [
@@ -205,7 +214,7 @@ slim/register [
 
 
 	;--------------------------
-	;- mysr.tracelog()
+	;-     mysr.tracelog()
 	;
 	;--------------------------
 	mysr.tracelog: make routine! [
@@ -215,7 +224,7 @@ slim/register [
 
 
 	;--------------------------
-	;- mysr.list-dbs()
+	;-     mysr.list-dbs()
 	;
 	;--------------------------
 	mysr.list-dbs: make routine! [
@@ -223,7 +232,6 @@ slim/register [
 		filter  [string!]
 		return: [string!]
 	] mysr.dll "mysr_list_dbs"
-
 
 
 	;--------------------------
@@ -235,6 +243,119 @@ slim/register [
 		query [string!]
 		return: [string!]
 	] mysr.dll "mysr_query"
+	
+	
+	
+	;--------------------------
+	;-     mysr.escape-string-quote()
+	;
+	; doc url : https://dev.mysql.com/doc/refman/5.7/en/mysql-real-escape-string-quote.html
+	;--------------------------
+	mysr.escape-string-quote: make routine! [
+		session   [integer!]  ; mysr connection session.
+		src-text  [string!]   ; text to quote
+		dest-text [string!]   ; result is copied here ( buffer must be ((src-len * 2) +1 bytes long )
+		src-len   [integer!]  ; length of text
+		context   [char!]     ; string wrapping character to ignore within given text.  ("), ('), or (`) 
+		return:   [integer!]  ; length of result string.
+	] mysr.dll "mysr_quote"
+		
+;		to-buffer [string!]    ; destination buffer ... NOTE: the length of this buffer must be:  
+;		                       ; ((from-length * 2) +1 bytes long )  
+;		                       ; In the worst case, each character may need to be encoded as using 
+;		                       ; two bytes, and there must be room for the terminating null byte.
+;		from-buffer [string!]  ; source buffer (string to fix) 
+;		from-length [integer!] ; length of source text (excluding null termination) 
+;		quote-context [char!]  ; within what string context is the text to be replaced within the query...
+;		                       ;    ex:  { "this" }  vs { 'this' }  
+;		                       ; in mysr we should only support the " string quote context.
+;		
+;		return: [integer!]     ; length of the to-buffer without null termination.
+	
+
+
+
+
+	;-                                                                                                       .
+	;-----------------------------------------------------------------------------------------------------------
+	;
+	;- CLASSES
+	;
+	;-----------------------------------------------------------------------------------------------------------
+	;--------------------------
+	;-     query!: [...]
+	;
+	; helper class to build and send safe (injection-proof queries)
+	;--------------------------
+	query!: context [
+		;--------------------------
+		;-         query:
+		;
+		; query to send to DB, in block format.
+		;
+		; words are replaced by their equivalents in variables.
+		;
+		; variables are injection-proofed before building the final query.
+		;
+		; we also detect if the query is missing a semi-colon at end and add it.
+		;--------------------------
+		query: ["show databases"]
+		
+		;--------------------------
+		;-         variables:
+		;
+		;--------------------------
+		variables: context [
+		]
+	]
+	
+
+
+	;-                                                                                                       .
+	;-----------------------------------------------------------------------------------------------------------
+	;
+	;- GENERIC FUNCTIONS
+	;
+	;-----------------------------------------------------------------------------------------------------------
+
+	;--------------------------
+	;-     reduce-query()
+	;--------------------------
+	; purpose:  just like reduce, but will convert all string-based values to string!
+	;           and escape the string to mysql specs.  this prevents sql injection, even
+	;           on values which are not bound to the query/variables context
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	reduce-query: funcl [
+		blk [block!]
+	][
+		vin "reduce-query()"
+		parse blk [
+			some [
+				.here: 
+				set word word! (
+					value: get word
+					v?? word
+					v?? value
+					value: form value
+					replace/all value []
+					replace .here 
+				)
+				| skip
+			]
+		
+		]
+		vout
+	]
 
 
 	;-                                                                                                       .
@@ -243,7 +364,6 @@ slim/register [
 	;- INTIALISE DLL
 	;
 	;-----------------------------------------------------------------------------------------------------------
-
 	vprint "initialising mysr for 10MB max query buffer"
 	?? buffersize
 	success: mysr.init buffersize
@@ -260,6 +380,84 @@ slim/register [
 	;
 	;-----------------------------------------------------------------------------------------------------------
 
+	;--------------------------
+	;-     trace-sql()
+	;--------------------------
+	; purpose:  given a path, set the tracelog-file and activate it.
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	trace-sql: funcl [
+		path [string! file!] "if given string!, we expect a system path."
+	][
+		vin "trace-sql()"
+		if file? path [
+			path: to-local-file clean-path path
+		]
+		mysr.tracelog path
+		vout
+	]
+	
+
+	;--------------------------
+	;-     escape-sql()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    performs change "in-place"
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	escape-sql: funcl [
+		text [string!]
+		/tick
+		/backtick
+		/using session [integer!]
+		/extern quote-buffer
+	][
+		vin "escape-sql()"
+
+		session: any [session default-session]
+		required-buffer-size: ((length? text) * 2 + 1 )
+	
+		if (length? quote-buffer) < required-buffer-size  [
+			quote-buffer: head insert/dup (copy "") "^@" required-buffer-size + 10
+		]
+	
+		wrap-char: case [
+			tick [#"'"]
+			backtick [#"`"]
+			'default [#"^""]
+		]
+		
+		v?? text
+		v?? [length? text]
+		newlength: mysr.escape-string-quote session text quote-buffer length? text wrap-char
+		
+		v?? quote-buffer
+		v?? newlength
+		v?? [ length? quote-buffer ]
+		
+		clear text
+		append text quote-buffer
+	
+		vout
+		text
+	]
 
 
 	;--------------------------
@@ -305,9 +503,6 @@ slim/register [
 		vout
 		session
 	]
-
-
-
 
 
 	;--------------------------
@@ -388,6 +583,119 @@ slim/register [
 		
 		first reduce [result result: data: none]
 	]
+	
+	
+	;--------------------------
+	;-     query()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	query: funcl [
+		query   [object! block!]
+		values  [object! string! block! none!]
+	][
+		vin "query()"
+		word: none
+		result: none
+		v?? query
+		v?? values
+		
+		if block? query [
+			; I guess this is a query  ;-D
+			query: make query! compose/only [query: (query)]
+			v?? query
+		]
+		
+		if string? values [
+			; a string is a block of 1 argument
+			values: reduce [values]
+		]
+		
+		switch type?/word values [
+			object! [
+				query/variables: make query/variables values 
+			]
+		
+			block! [
+				vprint "got block variables"
+				; when given a block of values, we assume these are given in numerical order,
+				;
+				; the first value is set to the first variable (any word!) in the query
+				words: copy []
+				variables: copy []
+				ctx-words: words-of query/variables
+				v?? query/query
+				
+				parse query/query [
+					some [
+						set word word! (
+							vprint ["FOUND variable: " word]
+							unless find variables word [
+								append variables word
+							]
+							unless find ctx-words word [
+								append words to-set-word word
+								append ctx-words word ; we don't want to add the same word twice.
+							]
+						)
+						| skip
+					]
+				]
+				v?? words
+				v?? variables
+				
+				unless empty? words [
+					append words none
+					query/variables: make query/variables words 
+				]
+				
+				i: 1
+				foreach word variables [
+					value: pick values i
+					if none? value [
+						to-error ["mysr/query() missing values for given query : " mold query/query]
+					]
+					set (in query/variables word) pick values i
+					++ i
+				]
+			]
+		]
+		
+		
+		;--------
+		; at this point we have a query ready to perform
+		;--------
+		query-blk: copy/deep query/query 
+		bind query-blk query/variables
+		query-blk: reduce-query query-blk
+		
+		replace/all query-blk #[none] "NULL"
+		
+		v?? query
+		vprint "============================"
+		v?? query-blk
+		vprint "============================"
+		query-str: form query-blk
+		v?? query-str
+				
+		vout
+		
+		result
+	]
+	
+
+	;-                                                                                                       .
+	;-     END OF LIB
 
 ]
 

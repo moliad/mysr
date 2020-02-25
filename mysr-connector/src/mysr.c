@@ -96,13 +96,14 @@ DLL_EXPORT int test_dll (char *text, int val){
 //--------------------------
 //-     mysr_connect()
 //--------------------------
-// purpose:  creates a session in memory, attempts a connection to db and returns the session
+// purpose:  creates a session in memory,  attempts a connection to db and returns the session
 //
 // inputs:
 //
 // returns:
 //
 // notes:    - the inner mysql connection will be null in the session, if connection is not successful.
+//           - will also do some calls to mysql_options() to setup required options like charset to use.
 //           - host and db arguments can be null (if host is null it will connect to localhost).
 //
 // to do:
@@ -127,11 +128,23 @@ DLL_EXPORT MysrSession *mysr_connect(char *host, char *db, char *usr, char *pwd 
 	if ((session == NULL) || (connection == NULL)) {
 		vprint ("error !! not enough memory for MysrSession{...} object.");
 	} else {
+		//--------
+		// intialise connection
+		//--------
 		success = mysql_init(connection);
+		
 		if (success == NULL){
 			vprint("MySQL ERROR: %s", mysql_error(NULL));
 		} else {
-			success = mysql_real_connect(connection, host, usr, pwd, db, 0, NULL, 0 );
+			//--------
+			// setup connection options to make session compatible with Rebol
+			//--------
+			mysql_options(connection, MYSQL_SET_CHARSET_NAME, "latin1");
+			
+			//--------
+			// attempt network connection.
+			//--------
+			success = mysql_real_connect(connection, host, usr, pwd, db, 0, NULL, CLIENT_REMEMBER_OPTIONS );
 			if (success){
 				vprint("Connected... YAY! Server info: %s", mysql_get_server_info(connection));
 			}else{
@@ -223,15 +236,13 @@ DLL_EXPORT int mysr_init(int buffersize){
 //
 // tests:    
 //--------------------------
-DLL_EXPORT int mysr_tracelog (
-	char* filepath
-){
-	vin("mysr_tracelog()");
+DLL_EXPORT int mysr_tracelog (char* filepath){
 	
 	vlogpath = filepath; 
 	vlogreset;
 	vlogon;
-	
+	vin("mysr_tracelog()");
+	vstr(filepath);
 	vout;
 	return (vlogfile != NULL);
 }
@@ -244,6 +255,40 @@ DLL_EXPORT int mysr_tracelog (
 //- DB QUERY FUNCTIONS
 //
 //-----------------------------------------------------------------------------------------------------------
+
+
+//--------------------------
+//-     mysr_quote()
+//--------------------------
+// purpose:  quote a string to prevent sql injection.
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    - be careful, we swapped argument order of src & result strings, compared to the mysql dll function.
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_quote(MysrSession *session, char* src, char* result, int srclen, char context){
+	int result_len=0;
+	
+	vin("mysr_quote()");
+	vstr(src);
+	vchar(context);
+	result_len = mysql_real_escape_string_quote(session->connection, result, srclen, len, context);
+	vstr(result);
+	vnum(srclen);
+	vnum(result_len);
+	vout;
+	return result_len;
+}
+
+
+
+
 //--------------------------
 //-     mysr_server_info()
 //--------------------------
@@ -323,7 +368,7 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
 DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
 	vin("mysr_query()");
 	MYSQL_RES *result;
-	unsigned int num_fields;
+	//unsigned int num_fields;
 	unsigned int num_rows;
 	char *molded_str=NULL;
 
@@ -588,7 +633,12 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 			printf("\n---------------------\n"); 
 		}		
 	}
-	mold(blk, resultbuffer, resultbuffersize, 0);
+	len=mold(blk, resultbuffer, resultbuffersize, 0);
+	
+	// in theory, len cannot be larger than resultbuffersize
+	// make absolutely sure that the string is null terminated.
+	resultbuffer[len] = 0;
+	
 	dismantle(blk);
 	
 

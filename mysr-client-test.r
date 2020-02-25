@@ -34,14 +34,14 @@ tracelog-path:  to-local-file clean-path %mysr-tracelog.txt
 
 
 ;--------------------------
-;- tracelog?:
+;-     tracelog?:
 ;
 ;--------------------------
 tracelog?: false
 
 
 ;--------------------------
-;- mysr.buffersize:
+;-     mysr.buffersize:
 ;
 ; if this is set BEFORE importing mysr lib, then it uses this
 ; instead of its default when initializing itself.
@@ -63,8 +63,11 @@ do %../slim-libs/slim/slim.r
 slim/vexpose
 slim/add-path clean-path %mysr-libs/
 
-slim/open/expose 'mysr none [ connect  list-dbs sql: mysql]
+mysr: slim/open/expose 'mysr none [ connect  list-dbs sql: mysql query query!  escape-sql  trace-sql]
 von
+mysr/von
+
+
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
 ;
@@ -82,14 +85,32 @@ von
 ;
 ;-----------------------------------------------------------------------------------------------------------
 vprint "testing mysr dll... extpecting result of 10"
+trace-sql %mysr-trace.log
 
 session: connect "localhost" "" "root" "123456"
-data: list-dbs session
-v?? data
+;data: list-dbs session 
+;v?? data
+
+;------------
+;vprobe sql "use inmail"
+;vprobe sql "describe logs;"
+;vprobe sql "insert into logs"
+;vprobe sql "select * from logs;"
+caca: none
+
+db: "iguerhgseliughseli"
+
+;query [ "use" db " ger " aa " egehi"  db caca] context [db: "ggg" aa: 666]
+;query [ "use" db " ger " aa " egehi"  db] ["inmail"  999]
+;query [ "use" db "as" db] "inmail"
+;query make query! [query:  [ "blah " db " ger " aa " egehi"  db]  ] context [ db: "ggg" aa: 777 ]
+;query [ "use inmail" ] none
 
 
-vprobe sql "use inmail"
-vprobe sql "describe logs;"
+;probe sql "SHOW CHARACTER SET;"
 
-ask "..."
+escaped: escape-sql {aaa";drop database}
+v?? escaped
+
+ask "..." 
 

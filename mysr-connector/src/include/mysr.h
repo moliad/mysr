@@ -38,37 +38,48 @@ DLL_EXPORT int test_dll (char *text, int val);
 
 
 //--------------------------
-//-     mysr_init()
-//--------------------------
-DLL_EXPORT int mysr_init();
-
-
-//--------------------------
 //-     mysr_connect()
 //--------------------------
 DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd );
 
 
+//--------------------------
+//-     mysr_init()
+//--------------------------
+DLL_EXPORT int mysr_init();
+
+//--------------------------
+//-     mysr_tracelog()
+//--------------------------
+
+//--------------------------
+DLL_EXPORT int mysr_tracelog (char* filepath);
+
+
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
-//- DB INTROSPECTION FUNCTIONS
+//- DB QUERY FUNCTIONS
 //
 //-----------------------------------------------------------------------------------------------------------
+
+
+//--------------------------
+//-     mysr_quote()
+//--------------------------
+DLL_EXPORT int mysr_quote(MysrSession *session, char* src, char* result, int srclen, char context);
+	
+
 //--------------------------
 //-     mysr_server_info()
 //--------------------------
 DLL_EXPORT const char* mysr_server_info(MysrSession *session);
 
 
-
-
 //--------------------------
 //-     mysr_probe_result()
 //--------------------------
 void mysr_probe_result(MYSQL_RES *result);
-
-
 
 
 //--------------------------
