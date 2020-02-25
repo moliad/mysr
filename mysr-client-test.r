@@ -64,8 +64,6 @@ slim/vexpose
 slim/add-path clean-path %mysr-libs/
 
 mysr: slim/open/expose 'mysr none [ connect  list-dbs sql: mysql query query!  escape-sql  trace-sql]
-von
-mysr/von
 
 
 ;-                                                                                                       .
@@ -85,7 +83,6 @@ mysr/von
 ;
 ;-----------------------------------------------------------------------------------------------------------
 vprint "testing mysr dll... extpecting result of 10"
-trace-sql %mysr-trace.log
 
 session: connect "localhost" "" "root" "123456"
 ;data: list-dbs session 
@@ -98,19 +95,38 @@ session: connect "localhost" "" "root" "123456"
 ;vprobe sql "select * from logs;"
 caca: none
 
-db: "iguerhgseliughseli"
+db: "inmail"
 
 ;query [ "use" db " ger " aa " egehi"  db caca] context [db: "ggg" aa: 666]
 ;query [ "use" db " ger " aa " egehi"  db] ["inmail"  999]
 ;query [ "use" db "as" db] "inmail"
 ;query make query! [query:  [ "blah " db " ger " aa " egehi"  db]  ] context [ db: "ggg" aa: 777 ]
-;query [ "use inmail" ] none
+
+;------------
+;-    Traces
+;------------
+von
+;mysr/von
+;trace-sql %mysr-trace.log
+
+;------------
+;-     Queries
+;------------
+vprobe query [ "use" db ] "inmail"
+foreach table head remove sql "show tables;" [
+	vprint ["===============================^/" table "^/==============================="]
+	time: dt [spec: query ["describe" table] table]
+	v?? time
+	vprobe extract next spec 6
+]
+
+
 
 
 ;probe sql "SHOW CHARACTER SET;"
 
-escaped: escape-sql {aaa";drop database}
-v?? escaped
+;escaped: escape-sql {aaa";drop database}
+;v?? escaped
 
 ask "..." 
 

@@ -329,32 +329,74 @@ slim/register [
 	;
 	; returns:  
 	;
-	; notes:    
+	; notes:    - We escape using back-tick by default as these are MUCH less used in the wild.
+	;           - as with reduce, the operation is "in-place"
+	;           - we do not support unbound words in blk on purpose
 	;
 	; to do:    
 	;
 	; tests:    
 	;--------------------------
 	reduce-query: funcl [
+		[catch]
 		blk [block!]
+		/tick
+		/quotes
+		/allow-unquoted "Allows unsafe query! blocks to be reduced."
 	][
 		vin "reduce-query()"
-		parse blk [
-			some [
-				.here: 
-				set word word! (
-					value: get word
-					v?? word
-					v?? value
-					value: form value
-					replace/all value []
-					replace .here 
-				)
-				| skip
+		throw-on-error [
+			parse blk [
+				some [
+					.here: 
+					
+					;-------------------------
+					; standard value, bound, quoted and escaped.
+					set word word! (
+						value: get word
+						
+						switch/all type?/word :value [
+							function! object! native! op! paren! port! [
+								to-error rejoin ["invalid type in query spec: " type?/word :value " here: " mold/all pick .here 2 "..." ]
+							]
+						]
+						
+						v?? word
+						v?? value
+						embedded-value: rejoin ["`" escape-sql/backtick form value "`"]
+						change .here embedded-value
+					)
+					
+					;-------------------------
+					; unsafe value, not allowed by default... must use /allow-unquoted
+					;
+					; get words are not quoted nor escaped.  they are dangerous and should be used ONLY with data
+					; which isn't originated from a client (untrusted) source.  These CAN EASILY ALLOW SQL INJECTION.
+					| set word get-word! (
+						unless allow-unquoted [
+							to-error ["Unsafe value spec found in query spec. : " word " use /allow-unquoted to force query."]
+						]
+						word: to-word word ; we got a get-word!, just make things simpler.
+						value: form get word
+						value:  form value
+						; we do not quote or escape value!
+						change .here value
+					)
+					| set value [function! | object! | native! | op! | paren! | port!] (
+						to-error rejoin ["invalid type in query spec: " type?/word :value " here: " mold/all pick .here 2 "..." ]
+					)
+										
+					| skip
+				]
 			]
-		
+			;----- 
+			; all good, no reason to throw an error
+			;----- 
+			true
 		]
 		vout
+		
+		blk
 	]
 
 
@@ -453,7 +495,7 @@ slim/register [
 		v?? [ length? quote-buffer ]
 		
 		clear text
-		append text quote-buffer
+		append text copy/part quote-buffer newlength
 	
 		vout
 		text
@@ -601,7 +643,7 @@ slim/register [
 	; tests:    
 	;--------------------------
 	query: funcl [
-		query   [object! block!]
+		query   [object! block! string!]
 		values  [object! string! block! none!]
 	][
 		vin "query()"
@@ -610,8 +652,12 @@ slim/register [
 		v?? query
 		v?? values
 		
+		if string? query [
+			query: reduce [query]
+		]
+		
 		if block? query [
-			; I guess this is a query  ;-D
+			; I guess the following is a query  ;-D
 			query: make query! compose/only [query: (query)]
 			v?? query
 		]
@@ -673,20 +719,31 @@ slim/register [
 		
 		
 		;--------
-		; at this point we have a query ready to perform
+		; at this point we have properly constructed query! instance ready to perform
 		;--------
+		v?? query
 		query-blk: copy/deep query/query 
 		bind query-blk query/variables
+
+		v?? query-blk
 		query-blk: reduce-query query-blk
 		
+		v?? query-blk
 		replace/all query-blk #[none] "NULL"
 		
-		v?? query
 		vprint "============================"
 		v?? query-blk
 		vprint "============================"
 		query-str: form query-blk
+		
+		unless #";" = last query-str [
+			append query-str ";"
+		]
+		
 		v?? query-str
+		
+		
+		result: sql query-str
 				
 		vout
 		
@@ -696,7 +753,6 @@ slim/register [
 
 	;-                                                                                                       .
 	;-     END OF LIB
-
 ]
 
 
