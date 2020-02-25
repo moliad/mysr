@@ -2,7 +2,7 @@ REBOL [
 	; -- Core Header attributes --
 	title: "Generic block! handling functions"
 	file: %mysr.r
-	version: 1.0.2
+	version: 0.5.0
 	date: 2020-02-20
 	author: "Maxim Olivier-Adlhoch"
 	purpose: {Open source full featured mysql connector.}
