@@ -18,7 +18,7 @@
 
 #define VERBOSE
 #include "vprint.h"
-#include "binary_log_types.h"
+#include "binary_log_types.h" // from mysql
 
 
 
@@ -278,7 +278,7 @@ DLL_EXPORT int mysr_quote(MysrSession *session, char* src, char* result, int src
 	vin("mysr_quote()");
 	vstr(src);
 	vchar(context);
-	result_len = mysql_real_escape_string_quote(session->connection, result, srclen, len, context);
+	result_len = mysql_real_escape_string_quote(session->connection, result, src, srclen, context);
 	vstr(result);
 	vnum(srclen);
 	vnum(result_len);
@@ -470,16 +470,20 @@ int map_sql_type(int sqltype){
 			
 		//---
 		// dates
-		case MYSQL_TYPE_TIMESTAMP:
 		case MYSQL_TYPE_DATE:
-		case MYSQL_TYPE_TIME:
 		case MYSQL_TYPE_DATETIME:
-		case MYSQL_TYPE_YEAR:
 		case MYSQL_TYPE_NEWDATE:
-		case MYSQL_TYPE_TIMESTAMP2:
 		case MYSQL_TYPE_DATETIME2:
+			
+		case MYSQL_TYPE_YEAR:		// this may need to be returned as int... not sure.
+		case MYSQL_TYPE_TIMESTAMP:  // this may need to be returned as 64 bit int... not sure.
+		case MYSQL_TYPE_TIMESTAMP2: // this may need to be returned as 64 bit int... not sure.
+			mold_type = MOLD_DATE;
+			break;
+			
+		case MYSQL_TYPE_TIME:
 		case MYSQL_TYPE_TIME2:
-			mold_type = MOLD_LITERAL;
+			mold_type = MOLD_TIME;
 			break;
 			
 		//---
@@ -509,7 +513,7 @@ int map_sql_type(int sqltype){
 		case MYSQL_TYPE_MEDIUM_BLOB:
 		case MYSQL_TYPE_LONG_BLOB:
 		case MYSQL_TYPE_BLOB:
-			mold_type = MOLD_INT;
+			mold_type = MOLD_BINARY;
 			break;
 		
 		//---
@@ -522,6 +526,63 @@ int map_sql_type(int sqltype){
 	vout;
 	return mold_type;
 }
+
+
+//--------------------------
+//- mysr_mold_sql_value()
+//--------------------------
+// purpose:  returns a mold object based on equivalent sql type
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+MoldValue *mysr_mold_sql_value(char *data, int column_type){
+	int type=0;
+	MoldValue *mv=NULL;
+	vin("mysr_mold_sql_value()");
+	
+	if (data){
+		type = map_sql_type(column_type);
+		
+		mv = build(MOLD_TEXT, data);
+		vnum(type != MOLD_TEXT);
+		vnum(type);
+		if (type != MOLD_TEXT){ // do nothing if output is a string.
+			switch (type) {
+				case MOLD_LITERAL:
+					vprint("will be using MOLD_LITTERAL");
+					// this type requires a specific conversion based on source type.
+					break;
+					
+				// semi-types can only be used for cast purposes (they become MOLD_LITERAL values pre 
+				case MOLD_DATE:
+				case MOLD_TIME:
+				case MOLD_BINARY:
+					break;
+					
+				default:
+					// the type can be converted directly using cast()
+					mv = cast(mv, type, CFALSE);
+					break;
+			}
+		}
+	}else{
+		mv = make(MOLD_NONE);
+	}
+	
+	vout;
+	return mv;
+}
+ 
+
+
 
 
 
@@ -621,12 +682,9 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 		vprint ("FETCHING DATA")
 		while ((row = mysql_fetch_row(result))) {
 			for(i = 0; i < field_cnt; i++) 
-			{ 
-				if (row[i]){
-					append(blk, mv = build(MOLD_TEXT, row[i]));
-				}else{
-					append(blk, mv = make(MOLD_NONE));
-				}
+			{
+				mv = mysr_mold_sql_value(row[i], column_types[i]);  // if row[i] is NULL, we receive a MOLD_NONE value
+				append(blk, mv);
 				printf("%s , " , (row[i] ? row[i] : "NULL")); 
 			} 
 			mv->newline = TRUE;

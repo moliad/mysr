@@ -56,10 +56,6 @@ REBOL [
 ;--------------------------------------
 
 slim/register [
-	print "============"
-	probe what-dir
-	print "============"
-
 	setcurrentdir to-local-file what-dir
 
 	;-                                                                                                       .
@@ -107,8 +103,8 @@ slim/register [
 	;
 	;--------------------------
 	dllpath: join dlldir dllname
-	?? dlldir
-	?? dllpath
+	;?? dlldir
+	;?? dllpath
 
 
 	;--------------------------
@@ -165,9 +161,9 @@ slim/register [
 	buffer: head insert/dup "" "^@" buflen
 	pathlen: getcurrentdir buflen buffer
 	app-wd: copy/part buffer pathlen
-	?? app-wd
+	;?? app-wd
 	
-	print "loading mysql library..."
+	vprint "loading mysql library..."
 	;print [ dllpath " : "  exists? dllpath ]
 	setcurrentdir dlldirpath
 	mysr.dll: load/library  dllpath
@@ -407,9 +403,9 @@ slim/register [
 	;
 	;-----------------------------------------------------------------------------------------------------------
 	vprint "initialising mysr for 10MB max query buffer"
-	?? buffersize
+	;?? buffersize
 	success: mysr.init buffersize
-	?? success
+	;?? success
 	if success = 0 [
 		to-error "mysr.init() UNABLE TO INITIALISE MYSQL CONNECTOR"
 	]
@@ -573,7 +569,7 @@ slim/register [
 		filter: any [filter ""]
 		
 		v?? filter
-		vprobe session
+		;vprobe session
 		
 		unless session [
 			throw-on-error [
@@ -582,7 +578,6 @@ slim/register [
 			]
 		]
 		data: mysr.list-dbs session filter
-		probe data
 		result: load data
 		vout
 		first reduce [result result: data: none]

@@ -112,13 +112,17 @@ von
 ;------------
 ;-     Queries
 ;------------
-vprobe query [ "use" db ] "inmail"
-foreach table head remove sql "show tables;" [
-	vprint ["===============================^/" table "^/==============================="]
-	time: dt [spec: query ["describe" table] table]
-	v?? time
-	vprobe extract next spec 6
-]
+;vprobe query [ "use" db ] "inmail"
+;foreach table head remove sql "show tables;" [
+;	vprint ["===============================^/" table "^/==============================="]
+;	time: dt [spec: query ["describe" table] table]
+;	v?? time
+;	v?? spec
+;	vprobe extract next spec 6
+;]
+sql "use inmail;"
+sql "describe logs;"
+
 
 
 

@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include "mysr.h"
 #include "mold.h"
-#include "clibs_cast.h"
+#include "clibs-cast.h"
 
 #define VERBOSE
 
