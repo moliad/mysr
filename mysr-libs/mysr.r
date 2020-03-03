@@ -314,87 +314,6 @@ slim/register [
 	;
 	;-----------------------------------------------------------------------------------------------------------
 
-	;--------------------------
-	;-     reduce-query()
-	;--------------------------
-	; purpose:  just like reduce, but will convert all string-based values to string!
-	;           and escape the string to mysql specs.  this prevents sql injection, even
-	;           on values which are not bound to the query/variables context
-	;
-	; inputs:   
-	;
-	; returns:  
-	;
-	; notes:    - We escape using back-tick by default as these are MUCH less used in the wild.
-	;           - as with reduce, the operation is "in-place"
-	;           - we do not support unbound words in blk on purpose
-	;
-	; to do:    
-	;
-	; tests:    
-	;--------------------------
-	reduce-query: funcl [
-		[catch]
-		blk [block!]
-		/tick
-		/quotes
-		/allow-unquoted "Allows unsafe query! blocks to be reduced."
-	][
-		vin "reduce-query()"
-		throw-on-error [
-			parse blk [
-				some [
-					.here: 
-					
-					;-------------------------
-					; standard value, bound, quoted and escaped.
-					set word word! (
-						value: get word
-						
-						switch/all type?/word :value [
-							function! object! native! op! paren! port! [
-								to-error rejoin ["invalid type in query spec: " type?/word :value " here: " mold/all pick .here 2 "..." ]
-							]
-						]
-						
-						v?? word
-						v?? value
-						embedded-value: rejoin ["`" escape-sql/backtick form value "`"]
-						change .here embedded-value
-					)
-					
-					;-------------------------
-					; unsafe value, not allowed by default... must use /allow-unquoted
-					;
-					; get words are not quoted nor escaped.  they are dangerous and should be used ONLY with data
-					; which isn't originated from a client (untrusted) source.  These CAN EASILY ALLOW SQL INJECTION.
-					| set word get-word! (
-						unless allow-unquoted [
-							to-error ["Unsafe value spec found in query spec. : " word " use /allow-unquoted to force query."]
-						]
-						word: to-word word ; we got a get-word!, just make things simpler.
-						value: form get word
-						value:  form value
-						; we do not quote or escape value!
-						change .here value
-					)
-					| set value [function! | object! | native! | op! | paren! | port!] (
-						to-error rejoin ["invalid type in query spec: " type?/word :value " here: " mold/all pick .here 2 "..." ]
-					)
-										
-					| skip
-				]
-			]
-			;----- 
-			; all good, no reason to throw an error
-			;----- 
-			true
-		]
-		vout
-		
-		blk
-	]
-
 
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------
@@ -409,6 +328,91 @@ slim/register [
 	if success = 0 [
 		to-error "mysr.init() UNABLE TO INITIALISE MYSQL CONNECTOR"
 	]
+
+
+
+
+	;-                                                                                                       .
+	;-----------------------------------------------------------------------------------------------------------
+	;
+	;-     DIALECTS
+	;
+	;-----------------------------------------------------------------------------------------------------------
+	;--------------------------
+	;-     parse-mysql-ctx: [...]
+	;
+	; all the rules used by do-mysql
+	;--------------------------
+	parse-mysql-ctx: context [
+		;--------------------------
+		;-         .name:
+		; generic variable which must be used in the same rule (must not allow a sub-rule after (since .name may be replaced by it.)
+		;--------------------------
+		.name: none
+		
+		;--------------------------
+		;-         mysql-script:
+		;
+		; reused container to store sql script to execute after =mysql= rule is done.
+		;--------------------------
+		mysql-script: []
+		
+		
+		;--------------------------
+		;-         =mysql=:
+		;
+		;--------------------------
+		=mysql=: [
+			(clear mysql-script)
+			any [
+				[
+					;---
+					; db creation
+					'CREATE [ 'DATABASE | 'DB ] 
+						set .name [get-word! | lit-word! | word! ] 
+						(vprint "!")
+						(
+							if get-word? :.name [
+								v?? .name
+								.name: get .name
+							]
+							v?? .name
+							append mysql-script compose/deep [
+								query [ "create database " db ] [(to-word .name)]
+								query [ "use " db ] [(to-word .name)]
+							]
+						)
+					
+					;---
+					; db loading
+					| 'USE 
+						set .name [word! | string!] 
+						(
+							append mysql-script compose [
+								query [ "use " db ] [(to-string .name)]
+							]
+						)
+					
+					;---
+					; TABLE creation
+					| 'CREATE 'TABLE 
+					set .name [ get-word! | lit-word! | word! ]
+					set .spec block!
+					(
+						if get-word? :.name [
+							.name: get .name
+						]
+						repend mysql-script [
+							'create-table to-lit-word .name .spec
+						]
+					)
+				]
+				
+				| skip
+			]
+		]
+	]
+
 
 
 	;-                                                                                                       .
@@ -467,7 +471,7 @@ slim/register [
 		/using session [integer!]
 		/extern quote-buffer
 	][
-		vin "escape-sql()"
+		;vin "escape-sql()"
 
 		session: any [session default-session]
 		required-buffer-size: ((length? text) * 2 + 1 )
@@ -482,18 +486,18 @@ slim/register [
 			'default [#"^""]
 		]
 		
-		v?? text
-		v?? [length? text]
+		;v?? text
+		;v?? [length? text]
 		newlength: mysr.escape-string-quote session text quote-buffer length? text wrap-char
 		
-		v?? quote-buffer
-		v?? newlength
-		v?? [ length? quote-buffer ]
+		;v?? quote-buffer
+		;v?? newlength
+		;v?? [ length? quote-buffer ]
 		
 		clear text
 		append text copy/part quote-buffer newlength
 	
-		vout
+		;vout
 		text
 	]
 
@@ -583,6 +587,238 @@ slim/register [
 		first reduce [result result: data: none]
 	]
 
+	
+	
+
+	;-                                                                                                       .
+	;-----------------------------------------------------------------------------------------------------------
+	;
+	;- QUERY MANAGEMENT
+	;
+	;-----------------------------------------------------------------------------------------------------------
+
+
+
+	;--------------------------
+	;-     sql-options()
+	;--------------------------
+	; purpose:  return MySQL options based on our options dialect
+	;--------------------------
+	sql-options: funcl [
+		options [block! none!]
+	][
+		vin "sql-options()"
+		str: clear ""
+		v?? options
+		if options [
+			;---
+			; we must deal with the size first, since it must immediately follow the type name.
+			;---
+			if size: find/last options integer! [
+				vprint "found size!"
+				size: take size
+				append str rejoin [ "(" size ")" ]
+			]
+			parse options [
+				any [
+					'auto-increment (
+						vprint "found auto-increment"
+						append str " AUTO_INCREMENT" 
+					)
+					| 'index (
+						; this column can be searched, it must be indexed
+						vprint "found index"	
+						append str " INDEX"
+					)
+					| 'unique (
+						; this column cannot have two rows with same data
+						vprint "found unique"	
+						append str " UNIQUE"
+					)
+					| 'primary (
+						; this column cannot have two rows with same data
+						vprint "found unique"	
+						append str " PRIMARY KEY"
+					)
+					| skip
+				]
+			]
+		]
+		vout
+		copy str
+	]
+
+
+	;--------------------------
+	;-     sql-type()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    the contents of the options block! MAY BE modified as a result of this function!!!
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	sql-type: funcl [
+		type [word!] ; use this pseudo-type
+		options [block!] ; also set these options!
+	][
+		vin "sql-type()"
+		
+		sql-type: none
+		
+		switch type [
+			string! [
+				; by default we use a varchar with a max size of 255 bytes.
+				sql-type: "VARCHAR" 
+				unless find options integer! [
+					append options 255 ; integers are used as the max size
+				]
+			]
+			text! [
+				; by default we use a longtext
+				sql-type: "LONGTEXT"
+			]
+			
+			binary! [
+				; by default we use a generic blob type
+				sql-type: "LONGBLOB"
+			]
+			integer! [
+				; by default we use a 32 bit signed integer value (like rebol)
+				sql-type: "INTEGER"
+			]
+			autokey! [
+				; simply an integer! with the auto-increment value set to true.
+				sql-type: "INTEGER"
+				unless find options 'auto-increment [
+					append options 'auto-increment
+				]
+				unless find options 'unique [
+					append options 'unique
+				]
+			]
+			literal! [
+				sql-type: "VARCHAR"
+				append options 255
+			]
+			
+			decimal! [
+				; Use sql decimal type  
+				;
+				; note that rebol actually uses double internaly. For currency, this should be ok.
+				;
+				; we may decide to use an alternate data mechanism to exchange decimal values and cast them when needed.
+				; this would be useful when we don't do arithmetic and require the data to remain unchanged textually.
+				; 
+				sql-type: "DECIMAL"
+			]
+			
+			json! [
+				; use optimised JSON storage
+				sql-type: "JSON"
+			]
+		]
+
+		vout
+		sql-type
+	]
+
+
+
+	;--------------------------
+	;-     reduce-query()
+	;--------------------------
+	; purpose:  just like reduce, but will convert all string-based values to string!
+	;           and escape the string to mysql specs.  this prevents sql injection, even
+	;           on values which are not bound to the query/variables context
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    - We escape using back-tick by default as these are MUCH less used in the wild.
+	;           - as with reduce, the operation is "in-place"
+	;           - we do not support unbound words in blk on purpose
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	reduce-query: funcl [
+		[catch]
+		blk [block!]
+		/tick
+		/quotes
+		/allow-unquoted "Allows unsafe query! blocks to be reduced."
+	][
+		vin "reduce-query()"
+		throw-on-error [
+			parse blk [
+				some [
+					.here: 
+					
+					;-------------------------
+					; standard value, bound, quoted and escaped.
+					set word word! (
+						value: get word
+						
+						switch/default type?/word :value [
+							function! object! native! op! paren! port! [
+								to-error rejoin ["invalid type in query spec: " type?/word :value " here: " mold/all pick .here 2 "..." ]
+							]
+							word! [
+								embedded-value: rejoin ["`" escape-sql/backtick form value "`"]
+							]
+							integer! decimal! [
+								embedded-value: form :value
+							]
+						][
+							embedded-value: rejoin [ {"} escape-sql form value {"} ]
+						]
+						v?? word
+						v?? value
+						v?? embedded-value
+						change .here embedded-value
+					)
+					
+					;-------------------------
+					; unsafe value, not allowed by default... must use /allow-unquoted
+					;
+					; get words are not quoted nor escaped.  they are dangerous and should be used ONLY with data
+					; which isn't originated from a client (untrusted) source.  These CAN EASILY ALLOW SQL INJECTION.
+					| set word get-word! (
+						unless allow-unquoted [
+							to-error ["Unsafe value spec found in query spec. : " word " use /allow-unquoted to force query."]
+						]
+						word: to-word word ; we got a get-word!, just make things simpler.
+						value: form get word
+						value:  form value
+						; we do not quote or escape value!
+						change .here value
+					)
+					| set value [function! | object! | native! | op! | paren! | port!] (
+						to-error rejoin ["invalid type in query spec: " type?/word :value " here: " mold/all pick .here 2 "..." ]
+					)
+										
+					| skip
+				]
+			]
+			;----- 
+			; all good, no reason to throw an error
+			;----- 
+			true
+		]
+		vout
+		
+		blk
+	]
+
 
 	;--------------------------
 	;-     mysql()
@@ -639,13 +875,21 @@ slim/register [
 	;--------------------------
 	query: funcl [
 		query   [object! block! string!]
-		values  [object! string! block! none!]
+		values  [object! string! block! none! word!]
+		/check "Do not actually run the query, just print out what it would look like in sql."
+		/allow-unquoted "get-word! values are allowed in given query"
 	][
 		vin "query()"
 		word: none
 		result: none
 		v?? query
 		v?? values
+		if any [
+			string? values
+			word? values
+		] [
+			values: reduce [values]
+		]
 		
 		if string? query [
 			query: reduce [query]
@@ -721,7 +965,11 @@ slim/register [
 		bind query-blk query/variables
 
 		v?? query-blk
-		query-blk: reduce-query query-blk
+		either allow-unquoted [
+			query-blk: reduce-query/allow-unquoted query-blk
+		][
+			query-blk: reduce-query query-blk
+		]
 		
 		v?? query-blk
 		replace/all query-blk #[none] "NULL"
@@ -737,8 +985,16 @@ slim/register [
 		
 		v?? query-str
 		
+		either check [
+			print "=========================================="
+			print query-str
+			print "=========================================="
+			result: none
+		][
 		
-		result: sql query-str
+			result: mysql query-str
+		]
+		
 				
 		vout
 		
@@ -746,9 +1002,238 @@ slim/register [
 	]
 	
 
+
+	;-                                                                                                       .
+	;-----------------------------------------------------------------------------------------------------------
+	;
+	;- HIGH-LEVEL FUNCTIONS
+	;
+	;-----------------------------------------------------------------------------------------------------------
+	
+
+	;--------------------------
+	;-     create-table()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	create-table: funcl [
+		name [word!]
+		columns [block!]
+	][
+		vin "create-table()"
+		
+		qry: copy ["CREATE TABLE " name "(^/" ] 
+		params: reduce [name ]
+		
+		; column options
+		.nulls?: false ; does this column allow NULLS.  it will become the default value if not set explicitely with .default.
+		.default: none ; none becomes NULL and will be type according to column datatype if not null.
+		.unique?: false ; does this column only store unique items
+		.primary?: none ; what is the primary key to this table.
+		.foreign: [] ; setup a reference to an external, existing table column of appropriate type.
+		
+		parse columns [
+			some [
+				set .name word!  (v?? .name .name: to-string .name)
+				(
+					.type: 'string!
+					.current-options: copy []
+					.sql-type: none
+				)
+				
+				;----
+				; remember, even though these look like datatypes they are just words in a block.
+				opt [
+					set .type [
+						  'string! 
+						| 'autokey! 
+						| 'binary! 
+						| 'integer! 
+						| 'decimal! 
+						| 'text!
+						| 'literal!
+						| 'json!
+					]
+				]
+				(
+					v?? .type
+					.sql-type: sql-type .type .current-options
+				)
+				any [
+					set .options block! (v?? .options append .current-options .options)
+					
+					| set .option [
+						  'PRIMARY 
+						| 'UNIQUE
+						| 'INDEX
+						| 'AUTO-INCREMENT 
+						| 'AUTO_INCREMENT
+					] ( 
+						v?? .current-options
+						v?? .option
+						if .option = 'AUTO_INCREMENT [ .option: 'AUTO-INCREMENT]
+						unless find .current-options .option [
+							append .current-options .option
+						]
+					)
+					| set .size integer! (v?? size append .current-options .size )
+				]
+				(
+					append qry reduce [ "^-" .name .sql-type (sql-options .current-options)]
+					append qry ",^/"
+				)
+			]
+		]
+		remove back tail qry ; just remove last comma
+		; end statement
+		append qry "^/);"
+		v?? qry
+		
+		
+		result: query qry none
+		
+	;	qry: reduce-query/allow-unquoted qry
+	;	v?? qry
+	;	
+	;	qry-str: form qry
+	;	v?? qry-str
+	;	
+	;	result: sql qry-str
+	;	
+		vout
+		
+		result
+		
+	]
+	
+	
+	
+	
+	;--------------------------
+	;-     insert-sql()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	insert-sql: funcl [
+		table [word!]
+		columns [block!]
+		data [block!]
+	][
+		vin "insert-sql()"
+		qry: clear []
+		qry-values: clear []
+		
+		data: copy data
+		word-name: 'w
+		counter: 1
+		
+		append qry reduce [ "INSERT INTO" to-string table "(" ]
+		
+		foreach word columns [
+			append qry to-lit-word word
+			append qry ","
+		]
+		remove back tail qry 
+		append qry ") VALUES "
+		
+		len: length? columns
+		
+		until [
+			set: take/part data len
+			qryset: copy ["("]
+			foreach item set [
+				append qryset to-word rejoin [word-name counter]
+				append qry-values item
+				append qryset "," 
+				++ counter
+			]
+			remove back tail  qryset
+			append qryset ")"
+			append qry qryset
+			append qry ","
+		
+			empty? data 
+		]
+		take/last qry
+		
+		v?? qry
+		v?? qry-values
+		
+		
+		query qry qry-values
+		
+		vout
+	]
+	
+	
+	
+	;--------------------------
+	;-     do-mysql()
+	;--------------------------
+	; purpose: 	takes a block, and replaces known sql patterns into function calls, 
+	;           leaves the rest as-is.
+	;
+	;           it then binds the resulting block and calls 'DO on it.
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	do-mysql: funcl [
+		instructions [block!]
+	][
+		vin "do-mysql()"
+	
+		parse instructions parse-mysql-ctx/=mysql= 
+		
+		script: parse-mysql-ctx/mysql-script
+		
+		v?? script
+	
+		do script
+	
+		vout
+	]
+	
+
+	
+	
+	
+	
+	
+
 	;-                                                                                                       .
 	;-     END OF LIB
 ]
+
+
+
 
 
 ;------------------------------------

@@ -49,8 +49,18 @@ tracelog?: false
 MYSR-QUERY-BUFFERSIZE: 12'000'000
 
 
+;--------------------------
+;-     dbname:
+;
+;--------------------------
+dbname: 'blah
 
 
+;--------------------------
+;-     session:
+;
+;--------------------------
+session: none
 
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
@@ -63,7 +73,7 @@ do %../slim-libs/slim/slim.r
 slim/vexpose
 slim/add-path clean-path %mysr-libs/
 
-mysr: slim/open/expose 'mysr none [ connect  list-dbs sql: mysql query query!  escape-sql  trace-sql]
+mysr: slim/open/expose 'mysr none [ connect  list-dbs sql: mysql query query!  escape-sql  trace-sql do-mysql insert-sql ]
 
 
 ;-                                                                                                       .
@@ -84,7 +94,7 @@ mysr: slim/open/expose 'mysr none [ connect  list-dbs sql: mysql query query!  e
 ;-----------------------------------------------------------------------------------------------------------
 vprint "testing mysr dll... extpecting result of 10"
 
-session: connect "localhost" "" "root" "123456"
+connect "localhost" "" "root" "123456"
 ;data: list-dbs session 
 ;v?? data
 
@@ -95,8 +105,6 @@ session: connect "localhost" "" "root" "123456"
 ;vprobe sql "select * from logs;"
 caca: none
 
-db: "inmail"
-
 ;query [ "use" db " ger " aa " egehi"  db caca] context [db: "ggg" aa: 666]
 ;query [ "use" db " ger " aa " egehi"  db] ["inmail"  999]
 ;query [ "use" db "as" db] "inmail"
@@ -106,7 +114,7 @@ db: "inmail"
 ;-    Traces
 ;------------
 von
-;mysr/von
+mysr/von
 ;trace-sql %mysr-trace.log
 
 ;------------
@@ -120,9 +128,77 @@ von
 ;	v?? spec
 ;	vprobe extract next spec 6
 ;]
-sql "use inmail;"
-sql "describe logs;"
 
+dbs: list-dbs
+v?? dbs
+
+
+;trace-sql %mysr-trace.log
+
+
+if find dbs to-string dbname [
+	query ["drop database " db] dbname
+]	
+
+do-mysql [
+	CREATE DATABASE :dbname
+
+	CREATE TABLE 'product [
+		ProductID			autokey! 
+		ProductCode 		120 primary
+		MLFB				20
+		Options				100
+		SAPMaterialCode
+		SpareNewStatus		5
+		ProductMilestone	5
+		RepairStatus		5
+		NetWeight			decimal!
+		WeightUnit			5
+		L1SparePartPrice	decimal!
+		L1RepairPrice		decimal!
+		L1ExchangePrice		decimal!
+		L2SparePartPrice	decimal!
+		L2RepairPrice		decimal!
+		L2ExchangePrice		decimal!
+		SparePartLeadTime	integer!
+		RepairLeadTime		integer!
+		ShortDescription	text!
+		PCK					10
+	]
+	;select [ ProductCode MLFB Options ] from product where ProductID = 4
+]
+
+
+dataset: []
+
+repeat i 1000 [
+	repend dataset [ to-string i rejoin [to-string i to-string i to-string i ] rejoin [to-string i "-options"] i ]
+]
+
+v?? dataset
+
+columns:  [MLFB options ProductCode SparePartLeadTime ]
+voff
+mysr/voff
+it: dt [
+	foreach [MLFB options ProductCode SparePartLeadTime ] dataset [
+		bind columns 'MLFB
+		insert-sql 'product columns reduce columns
+	]
+]
+mysr/von
+von
+
+vprint ["insert time: " it]
+v?? it
+
+;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
+
+t: dt [
+	result: sql "select * FROM product ;"
+]
+vprint ["select time: " t]
+v?? result
 
 
 
