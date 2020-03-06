@@ -778,6 +778,9 @@ slim/register [
 							integer! decimal! [
 								embedded-value: form :value
 							]
+							none! [
+								embedded-value: "NULL"
+							]
 						][
 							embedded-value: rejoin [ {"} escape-sql form value {"} ]
 						]
@@ -846,6 +849,7 @@ slim/register [
 				none
 			]
 		]
+		vprint query
 		if block? query [
 			query: rejoin query
 		]
@@ -944,13 +948,18 @@ slim/register [
 					query/variables: make query/variables words 
 				]
 				
+				; add a refinement for missing values as null?
+				if (length? values) < (length? variables) [
+					to-error ["mysr/query() missing values for given query : " mold query/query]
+				]
+				
 				i: 1
 				foreach word variables [
-					value: pick values i
-					if none? value [
-						to-error ["mysr/query() missing values for given query : " mold query/query]
+					value: any [
+						pick values i 
+						;"NULL"
 					]
-					set (in query/variables word) pick values i
+					set (in query/variables word) value
 					++ i
 				]
 			]
@@ -1140,6 +1149,11 @@ slim/register [
 		data [block!]
 	][
 		vin "insert-sql()"
+		
+		;v?? columns
+		;v?? data
+		;ask "..."
+		
 		qry: clear []
 		qry-values: clear []
 		
