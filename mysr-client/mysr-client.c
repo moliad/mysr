@@ -17,7 +17,6 @@
 #include <stdlib.h>
 #include "mysr.h"
 #include "mold.h"
-#include "clibs-cast.h"
 
 #define VERBOSE
 
@@ -32,10 +31,10 @@
 
 int main(){
 	int len=0;
-	// int bufsize = 100;
-	//char buffer[bufsize];
+	int bufsize = 1000;
+	char buffer[bufsize];
 	//MoldValue *dmv=NULL;
-	//MoldValue *mv=NULL;
+	MoldValue *mv=NULL;
 	char *list=NULL;
 	int success=0;
 	
@@ -67,9 +66,12 @@ int main(){
 	}else{
 		printf("ERROR: unable to initialise a buffer of %i\n\n bytes", mysql_query_buffer_size );
 	}
+	mv = build( MOLD_WORD, "error" );
+	mv->next = make ( MOLD_BLOCK );
 	
+	mold_list(mv, buffer, bufsize, 0);
 	
-	
+	vprint(buffer);
 	
 	vout
 	return 0;
