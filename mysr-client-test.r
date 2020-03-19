@@ -68,6 +68,21 @@ dbname: 'blah
 ;--------------------------
 session: none
 
+;--------------------------
+;-     only-rebuild-db:
+;
+; in production, this is none.
+;
+; while developping, you can choose one or more DBs to rebuild.
+;--------------------------
+;only-rebuild-db: [
+;	contact-db
+;	product-db
+;]
+;only-rebuild-db: [client-domain-db] 
+;only-rebuild-db: none
+only-rebuild-db: [client-db contact-db domain-equiv-db sap-db products-db client-domain-db discount-db]
+
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
 ;
@@ -123,7 +138,7 @@ von
 mysr/von
 bulk-lib/von
 
-trace-sql %mysr-trace.log
+;trace-sql %mysr-trace.log
 
 ;------------
 ;-     Queries
@@ -138,7 +153,7 @@ trace-sql %mysr-trace.log
 ;]
 
 dbs: list-dbs
-v?? dbs
+;v?? dbs
 
 
 ;trace-sql %mysr-trace.log
@@ -217,20 +232,219 @@ do-mysql [
 		ShortDescription	text!
 		PCK					10
 	]
+	
+	CREATE TABLE 'contact [
+		Email				100
+		Surname				40
+		FirstName			40
+		CompanyNumber		100
+		Name1				120
+		Name2				120
+		PL					2
+		Grp2				30
+		CustomerGroup2		30
+	]
 ]
 
 bulk-lib/default-null: ""
 
+
+
+;-                                                                                                       .
+;-----------------------------------------------------------------------------------------------------------
+;
+;-     CLIENT-DB
+;
+;-----------------------------------------------------------------------------------------------------------
+;either all [
+;	any [
+;		not only-rebuild-db
+;		find only-rebuild-db 'client-db
+;	]
+;][
+	print "PROCESSING CLIENT DB"
+	client-db: csv-to-bulk/select  join dir %data/siemens-client-db.csv [Customer Name1 Name2 PL Grp2 CustomerGroup2]
+	rebuild-client-rule?: true
+	client-db: to-hash next client-db
+	;v?? CLIENT-DB
+	;ask "..."
+	print "PROCESSING CLIENT DB DONE"
+;]
+
+
+
+
+;-                                                                                                       .
+;-----------------------------------------------------------------------------------------------------------
+;
+;-     CONTACT-DB
+;
+;-----------------------------------------------------------------------------------------------------------
+;either all [
+;	any [
+;		not only-rebuild-db
+;		find only-rebuild-db 'contact-db
+;	]
+;][
+	vprint "PROCESSING CONTACT DB"	
+	contact-db: csv-to-bulk/utf8/select join dir %data/siemens-contact-db.csv  [ Email Surname FirstName CompanyNumber]
+	;==============
+	; generating ambiguous client 
+	pure-columns: exclude column-labels contact-db [Surname FirstName]
+	;probe contact-db-bulk
+	;probe pure-columns
+	;probe next contact-db-bulk
+	pure-contact-bulk: select-bulk/select contact-db pure-columns
+	column-count: bulk-columns pure-contact-bulk
+	record: next pure-contact-bulk
+	
+	;ask "YEEEEEEEES"
+	ambiguous-contacts: make hash![]
+	classify-blk: make hash![]
+	potential-blk: make hash![] 
+	repetetive-blk: make hash![]
+
+	forskip record column-count [
+		key: first record
+		;v?? key
+		unless blk: select classify-blk key [
+			repend classify-blk [ key blk: copy[]]
+			;if (length? blk ) > 1 [ repend potential-blk [ key blk: copy[]] ]
+		]
+		append blk copy/part next record column-count - 1
+		;if (length? blk ) > 1 [ repend potential-blk [key blk]]
+		
+		new-line/skip blk true column-count - 1
+	]
+	;print classify-blk
+
+	;ask "BEFORE FILTERING"
+
+	foreach [email blk] classify-blk [
+		clients: unique blk
+		either ( length? clients ) > 1  [
+			repend  ambiguous-contacts  [email clients]
+			;?? ambiguous-contacts
+		][
+			; clean up the list so its unique
+			clear blk
+			append blk clients
+		]
+	]
+	
+	;print "ambiguous-contacts"
+	;v?? ambiguous-contacts
+	new-line/skip ambiguous-contacts: to-block ambiguous-contacts true 2
+	;print classify-blk
+	;ask "ambiguous-contacts"
+	
+	;ask "Ambiguity Found"
+	
+	;----finishing generating the ambiguous-contacts 
+	;=============
+
+	rebuild-client-rule?: true
+
+
+	table: next contact-db
+	
+	email: Surname: FirstName: CompanyNumber: Name1: Name2: PL: Grp2: CustomerGroup2: none ;Grp2: CustomerGroup2: none
+	
+	;---
+	;add columns to contact-db
+	;---
+	delay: dt [add-column contact-db [ Name1 Name2 PL Grp2 CustomerGroup2 ]]
+	v?? delay
+	vprint "JOINING CLIENT-DB DATA TO CONTACT-DB"
+	until [
+		;vprint "^/======================================================="
+		set [Email Surname FirstName CompanyNumber   Name1 Name2 PL Grp2 CustomerGroup2] table
+		client: find client-db CompanyNumber
+		
+		either client [
+			set [CompanyNumber Name1 Name2 PL Grp2 CustomerGroup2] client
+		][
+			Name1: ""
+			Name2: ""
+			PL: "Unknown"
+			Grp2: ""
+			CustomerGroup2: ""
+			; <TODO>   remove comments... in production.
+		]
+		
+		next-row: change table reduce [ Email Surname FirstName CompanyNumber Name1 Name2 PL Grp2 CustomerGroup2] ; CHANGE returns block After its change, (after last column, so the first column of next row)
+		
+		table: next-row
+
+		tail? table
+	]
+
+	;new-line/skip next contact-db true 9
+	realign-bulk-rows contact-db
+	
+	columns: next next next contact-db/1
+	;v?? columns
+	;ask "..."
+	counter: 0
+	;voff
+	;mysr/voff
+	it: dt compose/only [
+		foreach (columns) next contact-db[ ;contact-db [
+			bind columns 'Email
+			;vprobe reduce columns
+			;ask "..."
+			insert-sql 'contact columns reduce columns
+			if 0 = modulo counter 100 [
+				vprint counter
+			]
+			counter: counter + 1
+			;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
+		]
+	]
+	
+	vprint "PROCESSING CONTACT DB DONE"
+;]
+
+
+;-                                                                                                       .
+;-----------------------------------------------------------------------------------------------------------
+;
+;-     DOMAIN-EQUIV-DB
+;
+;-----------------------------------------------------------------------------------------------------------
+;if all [
+;	any [
+;		not only-rebuild-db
+;		find only-rebuild-db 'domain-equiv-db
+;	]
+;][
+	vprint "PROCESSING DOMAIN-EQUIV DB"
+	domain-equiv-db: csv-to-bulk/utf8/select dir/data/siemens-domain-equiv-db.csv [Domain ClientID]
+	v?? domain-equiv-db
+	domain-equiv-db: to-hash copy next domain-equiv-db
+	
+	vprint "PROCESSING DOMAIN-EQUIV DB DONE"
+;]
+
+;-                                                                                                       .
+;-----------------------------------------------------------------------------------------------------------
+;
+;-     SAP-DB
+;
+;-----------------------------------------------------------------------------------------------------------
 print "PROCESSING SAP DB"
 sap-db: csv-to-bulk/select/every join dir %data/siemens-sap-products-db.csv [ProductCode Material] [ProductCode: make-product-code ProductNumberPrint Options] 
 sap-db: to-hash next sap-db
 
-;write rdata-dir/sap.rdata mold/all sap-db
 print "PROCESSING SAP DB DONE"
-print "LOADING SAP DB"
-;delay: dt [sap-db: load rdata-dir/sap.rdata]
 ;vprint ["LOADING SAP DB DONE (" delay ")" ]
 
+;-                                                                                                       .
+;-----------------------------------------------------------------------------------------------------------
+;
+;-     PRODUCT-DB
+;
+;-----------------------------------------------------------------------------------------------------------
 vprint "PROCESSING PRODUCT DB"
 product-filter-file: join dir %data/siemens-product-filter.txt
 filter-data: none
@@ -271,16 +485,15 @@ products-db: csv-to-bulk/select/every/where/types dir/data/siemens-product-db-ex
 ]
 sort-bulk/reverse/using products-db 'ProductCode
 
-;write rdata-dir/products-sort.rdata mold/all products-db
 vprint "PROCESSING PRODUCT DB DONE"
 
 ;v?? products-db
 
-dataset: []
-
-repeat i 1000 [
-	repend dataset [ to-string i rejoin [to-string i to-string i to-string i ] rejoin [to-string i "-options"] i ]
-]
+;dataset: []
+;
+;repeat i 1000 [
+;	repend dataset [ to-string i rejoin [to-string i to-string i to-string i ] rejoin [to-string i "-options"] i ]
+;]
 
 
 columns: products-db/1/4
@@ -288,33 +501,34 @@ columns: products-db/1/4
 ;ask "..."
 ;v?? products-db
 ;ask "..."
+counter: 0
 ;voff
 ;mysr/voff
-it: dt probe compose/only [
-	vprint "====================="
-	vprint "====================="
-	vprint "====================="
-	vprint "====================="
+it: dt compose/only [
 	foreach (columns) next products-db[ ;products-db [
 		bind columns 'ProductCode
-		vprobe reduce columns
+		;vprobe reduce columns
 		;ask "..."
 		insert-sql 'product columns reduce columns
+		if 0 = modulo counter 100 [
+			vprint counter
+		]
+		counter: counter + 1
+		;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
 	]
 ]
 ;mysr/von
 ;von
 
-vprint ["insert time: " it]
-v?? it
+;vprint ["insert time: " it]
+;v?? it
 
-;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
 
 t: dt [
 	result: sql "select * FROM product ;"
 ]
-vprint ["select time: " t]
-v?? result
+;vprint ["select time: " t]
+;v?? result
 
 
 ;probe sql "SHOW CHARACTER SET;"
@@ -322,5 +536,5 @@ v?? result
 ;escaped: escape-sql {aaa";drop database}
 ;v?? escaped
 
-ask "..." 
+;ask "..." 
 

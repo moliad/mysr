@@ -32,7 +32,7 @@
 
 //--------------------------
 //-     resultbuffer:
-// 
+//
 // memory used for all rebol results
 //
 // set this up using mysr_init()
@@ -132,15 +132,19 @@ DLL_EXPORT MysrSession *mysr_connect(char *host, char *db, char *usr, char *pwd 
 		// intialise connection
 		//--------
 		success = mysql_init(connection);
-		
+
 		if (success == NULL){
+			//error = build(mold_word,"error");
+			//error -> next = build(mold_string, mysql_error());
+			//vout;
+			//return error;
 			vprint("MySQL ERROR: %s", mysql_error(NULL));
 		} else {
 			//--------
 			// setup connection options to make session compatible with Rebol
 			//--------
 			mysql_options(connection, MYSQL_SET_CHARSET_NAME, "latin1");
-			
+
 			//--------
 			// attempt network connection.
 			//--------
@@ -148,6 +152,10 @@ DLL_EXPORT MysrSession *mysr_connect(char *host, char *db, char *usr, char *pwd 
 			if (success){
 				vprint("Connected... YAY! Server info: %s", mysql_get_server_info(connection));
 			}else{
+				//error = build(mold_word,"error");
+				//error -> next = build(mold_string, mysql_error(connection));
+				//vout;
+				//return error;
 				vprint("Unable to connect, deallocating session...");
 				vprint("MySQL ERROR: %s", mysql_error(connection));
 			}
@@ -201,13 +209,13 @@ DLL_EXPORT int mysr_init(int buffersize){
 	if (resultbuffer){
 		resultbuffersize = buffersize;
 	}
-	
+
 	column_types = calloc(1, column_types_array_size * sizeof(int));
 	if (column_types == NULL){
 		// make sure the actual array size is reflected.
 		column_types_array_size =0;
 	}
-	
+
 
 	vprint("MySQL client info: %s", mysql_get_client_info())
 
@@ -223,7 +231,7 @@ DLL_EXPORT int mysr_init(int buffersize){
 //--------------------------
 // purpose:  generates a trace log on disk, given an absolute filepath.
 //
-// inputs:   
+// inputs:
 //
 // returns:  0 or 1 depending on if we where able to open filepath.
 //
@@ -232,13 +240,13 @@ DLL_EXPORT int mysr_init(int buffersize){
 //           - CAN BE CALLED BEFORE mysr_init() !!!
 //           - if called from REBOL, BE SURE not to reset the word holding the path to another value or it will be recycled and OUR pointer will be corrupted.
 //
-// to do:    
+// to do:
 //
-// tests:    
+// tests:
 //--------------------------
 DLL_EXPORT int mysr_tracelog (char* filepath){
-	
-	vlogpath = filepath; 
+
+	vlogpath = filepath;
 	vlogreset;
 	vlogon;
 	vin("mysr_tracelog()");
@@ -262,19 +270,19 @@ DLL_EXPORT int mysr_tracelog (char* filepath){
 //--------------------------
 // purpose:  quote a string to prevent sql injection.
 //
-// inputs:   
+// inputs:
 //
-// returns:  
+// returns:
 //
 // notes:    - be careful, we swapped argument order of src & result strings, compared to the mysql dll function.
 //
-// to do:    
+// to do:
 //
-// tests:    
+// tests:
 //--------------------------
 DLL_EXPORT int mysr_quote(MysrSession *session, char* src, char* result, int srclen, char context){
 	int result_len=0;
-	
+
 	vin("mysr_quote()");
 	vstr(src);
 	vchar(context);
@@ -325,7 +333,7 @@ DLL_EXPORT const char* mysr_server_info(MysrSession *session){
 //
 // returns:
 //
-// notes:    
+// notes:
 //
 // to do:
 //
@@ -378,15 +386,17 @@ DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
 		//------
 		// error
 		//------
+		//error = build(mold_word,"error");
+		//error -> next = build(mold_string, mysql_error(session->connection));
 		vprint ("MySQL Query ERROR! %s", mysql_error(session->connection));
-		vout;
-		return NULL;
+		//vout;
+		//return error;
 	} else {
 		 // query succeeded, process any data returned by it
 		result = mysql_store_result(session->connection);
 		if (result) {
 			// there are rows
-			
+
 			molded_str = mysr_mold_result(result);
 		} else {
 			// mysql_store_result() returned nothing; should it have?
@@ -397,7 +407,11 @@ DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
 				vprint("Query affected %i rows", num_rows);
 			} else {
 				// mysql_store_result() should have returned data
+				//error = build(mold_word,"error");
+				//error -> next = build(mold_string, mysql_error(session->connection));
 				vprint ("MySQL Query ERROR! %s", mysql_error(session->connection));
+				//vout;
+				//return error;
 			}
 		}
 	}
@@ -420,17 +434,17 @@ DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
 //--------------------------
 //-     map_sql_type()
 //--------------------------
-// purpose:  
+// purpose:
 //
-// inputs:   
+// inputs:
 //
-// returns:  a MOLD type 
+// returns:  a MOLD type
 //
-// notes:    
+// notes:
 //
-// to do:    
+// to do:
 //
-// tests:    
+// tests:
 //--------------------------
 int map_sql_type(int sqltype){
 	int mold_type = 0;
@@ -444,7 +458,7 @@ int map_sql_type(int sqltype){
 		case MYSQL_TYPE_DECIMAL:
 			mold_type = MOLD_DECIMAL;
 			break;
-			
+
 		//---
 		// integers
 		case MYSQL_TYPE_TINY:
@@ -453,7 +467,7 @@ int map_sql_type(int sqltype){
 		case MYSQL_TYPE_INT24:
 			mold_type = MOLD_INT;
 			break;
-			
+
 		//---
 		// URL (we store the whole 64bit value as a url, using the scheme as the type)
 		//
@@ -461,31 +475,31 @@ int map_sql_type(int sqltype){
 		case MYSQL_TYPE_LONGLONG:
 			mold_type = MOLD_LITERAL;
 			break;
-		
+
 		//---
 		// boolean
 		case MYSQL_TYPE_NULL:
 			mold_type = MOLD_NONE;
 			break;
-			
+
 		//---
 		// dates
 		case MYSQL_TYPE_DATE:
 		case MYSQL_TYPE_DATETIME:
 		case MYSQL_TYPE_NEWDATE:
 		case MYSQL_TYPE_DATETIME2:
-			
+
 		case MYSQL_TYPE_YEAR:		// this may need to be returned as int... not sure.
 		case MYSQL_TYPE_TIMESTAMP:  // this may need to be returned as 64 bit int... not sure.
 		case MYSQL_TYPE_TIMESTAMP2: // this may need to be returned as 64 bit int... not sure.
 			mold_type = MOLD_DATE;
 			break;
-			
+
 		case MYSQL_TYPE_TIME:
 		case MYSQL_TYPE_TIME2:
 			mold_type = MOLD_TIME;
 			break;
-			
+
 		//---
 		// string
 		case MYSQL_TYPE_VARCHAR:
@@ -494,19 +508,19 @@ int map_sql_type(int sqltype){
 		case MYSQL_TYPE_STRING:
 			mold_type = MOLD_TEXT;
 			break;
-		
+
 		//---
 		// charset
 		case MYSQL_TYPE_BIT:
 			mold_type = MOLD_LITERAL;
 			break;
-		
+
 		//---
 		// issue
 		case MYSQL_TYPE_ENUM:
 			mold_type = MOLD_TEXT;
 			break;
-			
+
 		//---
 		// binary
 		case MYSQL_TYPE_TINY_BLOB:
@@ -515,7 +529,7 @@ int map_sql_type(int sqltype){
 		case MYSQL_TYPE_BLOB:
 			mold_type = MOLD_BINARY;
 			break;
-		
+
 		//---
 		// block
 		case MYSQL_TYPE_SET:         //(list of tokens)
@@ -529,28 +543,28 @@ int map_sql_type(int sqltype){
 
 
 //--------------------------
-//- mysr_mold_sql_value()
+//-     mysr_mold_sql_value()
 //--------------------------
 // purpose:  returns a mold object based on equivalent sql type
 //
-// inputs:   
+// inputs:
 //
-// returns:  
+// returns:
 //
-// notes:    
+// notes:
 //
-// to do:    
+// to do:
 //
-// tests:    
+// tests:
 //--------------------------
 MoldValue *mysr_mold_sql_value(char *data, int column_type){
 	int type=0;
 	MoldValue *mv=NULL;
 	vin("mysr_mold_sql_value()");
-	
+
 	if (data){
 		type = map_sql_type(column_type);
-		
+
 		mv = build(MOLD_TEXT, data);
 		vnum(type != MOLD_TEXT);
 		vnum(type);
@@ -560,13 +574,13 @@ MoldValue *mysr_mold_sql_value(char *data, int column_type){
 					vprint("will be using MOLD_LITTERAL");
 					// this type requires a specific conversion based on source type.
 					break;
-					
-				// semi-types can only be used for cast purposes (they become MOLD_LITERAL values pre 
+
+				// semi-types can only be used for cast purposes (they become MOLD_LITERAL values pre
 				case MOLD_DATE:
 				case MOLD_TIME:
 				case MOLD_BINARY:
 					break;
-					
+
 				default:
 					// the type can be converted directly using cast()
 					mv = cast(mv, type, CFALSE);
@@ -576,11 +590,11 @@ MoldValue *mysr_mold_sql_value(char *data, int column_type){
 	}else{
 		mv = make(MOLD_NONE);
 	}
-	
+
 	vout;
 	return mv;
 }
- 
+
 
 
 
@@ -639,7 +653,7 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 	int			 field_cnt=0;
 	int			 i;
 	MYSQL_ROW 	row=0;
-	
+
 	vin("mysr_mold_result()");
 	blk = make(MOLD_BLOCK);
 	header = make (MOLD_BLOCK);
@@ -659,46 +673,46 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 	} else {
 		field_cnt = mysql_num_fields(result);
 		vprint("Number of columns: %d\n", field_cnt);
-		
+
 		if (field_cnt >  column_types_array_size){
 			vprint ("ERROR! Too many columns in result set");
 			vout;
 			return NULL;
 		}
 		column_count->value = field_cnt;
-		
+
 		for (i=0; i < field_cnt; ++i){
 			/* col describes i-th column of the table */
 			MYSQL_FIELD *col = mysql_fetch_field_direct(result, i);
 			vprint ("Column %d: %s\n", i, col->name);
 			append ( column_names, build(MOLD_WORD, col->name) );
-			
+
 			vprint ("Column type %i\n", col->type);
 			column_types[i] = col->type;
 		}
-		
+
 		//----------
 		// fetch the row data
 		vprint ("FETCHING DATA")
 		while ((row = mysql_fetch_row(result))) {
-			for(i = 0; i < field_cnt; i++) 
+			for(i = 0; i < field_cnt; i++)
 			{
 				mv = mysr_mold_sql_value(row[i], column_types[i]);  // if row[i] is NULL, we receive a MOLD_NONE value
 				append(blk, mv);
-				printf("%s , " , (row[i] ? row[i] : "NULL")); 
-			} 
+				printf("%s , " , (row[i] ? row[i] : "NULL"));
+			}
 			mv->newline = TRUE;
-			printf("\n---------------------\n"); 
-		}		
+			printf("\n---------------------\n");
+		}
 	}
-	len=mold(blk, resultbuffer, resultbuffersize, 0);
-	
+	len=mold_list(blk, resultbuffer, resultbuffersize, 0);
+
 	// in theory, len cannot be larger than resultbuffersize
 	// make absolutely sure that the string is null terminated.
 	resultbuffer[len] = 0;
-	
+
 	dismantle(blk);
-	
+
 
 	//-------------
 	// deallocate the whole data-tree

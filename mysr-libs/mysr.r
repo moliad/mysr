@@ -373,10 +373,10 @@ slim/register [
 						(vprint "!")
 						(
 							if get-word? :.name [
-								v?? .name
+								;v?? .name
 								.name: get .name
 							]
-							v?? .name
+							;v?? .name
 							append mysql-script compose/deep [
 								query [ "create database " db ] [(to-word .name)]
 								query [ "use " db ] [(to-word .name)]
@@ -572,7 +572,7 @@ slim/register [
 		session: any [session default-session]
 		filter: any [filter ""]
 		
-		v?? filter
+		;v?? filter
 		;vprobe session
 		
 		unless session [
@@ -609,7 +609,7 @@ slim/register [
 	][
 		vin "sql-options()"
 		str: clear ""
-		v?? options
+		;v?? options
 		if options [
 			;---
 			; we must deal with the size first, since it must immediately follow the type name.
@@ -757,7 +757,7 @@ slim/register [
 		/quotes
 		/allow-unquoted "Allows unsafe query! blocks to be reduced."
 	][
-		vin "reduce-query()"
+		;vin "reduce-query()"
 		throw-on-error [
 			parse blk [
 				some [
@@ -784,9 +784,9 @@ slim/register [
 						][
 							embedded-value: rejoin [ {"} escape-sql form value {"} ]
 						]
-						v?? word
-						v?? value
-						v?? embedded-value
+						;v?? word
+						;v?? value
+						;v?? embedded-value
 						change .here embedded-value
 					)
 					
@@ -817,7 +817,7 @@ slim/register [
 			;----- 
 			true
 		]
-		vout
+		;vout
 		
 		blk
 	]
@@ -841,7 +841,7 @@ slim/register [
 	mysql: funcl [
 		query [string! block!]
 	][
-		vin "mysql()"
+		;vin "mysql()"
 		session: any [ session default-session ]
 		unless session [
 			throw-on-error [
@@ -849,14 +849,14 @@ slim/register [
 				none
 			]
 		]
-		vprint query
+		;vprint query
 		if block? query [
 			query: rejoin query
 		]
 		
 		data: mysr.query session query
 		result: load data
-		vout
+		;vout
 		
 		first reduce [result result: data: none]
 	]
@@ -883,11 +883,11 @@ slim/register [
 		/check "Do not actually run the query, just print out what it would look like in sql."
 		/allow-unquoted "get-word! values are allowed in given query"
 	][
-		vin "query()"
+		;vin "query()"
 		word: none
 		result: none
-		v?? query
-		v?? values
+		;v?? query
+		;v?? values
 		if any [
 			string? values
 			word? values
@@ -902,7 +902,7 @@ slim/register [
 		if block? query [
 			; I guess the following is a query  ;-D
 			query: make query! compose/only [query: (query)]
-			v?? query
+			;v?? query
 		]
 		
 		if string? values [
@@ -916,19 +916,19 @@ slim/register [
 			]
 		
 			block! [
-				vprint "got block variables"
+				;vprint "got block variables"
 				; when given a block of values, we assume these are given in numerical order,
 				;
 				; the first value is set to the first variable (any word!) in the query
 				words: copy []
 				variables: copy []
 				ctx-words: words-of query/variables
-				v?? query/query
+				;v?? query/query
 				
 				parse query/query [
 					some [
 						set word word! (
-							vprint ["FOUND variable: " word]
+							;vprint ["FOUND variable: " word]
 							unless find variables word [
 								append variables word
 							]
@@ -940,8 +940,8 @@ slim/register [
 						| skip
 					]
 				]
-				v?? words
-				v?? variables
+				;v?? words
+				;v?? variables
 				
 				unless empty? words [
 					append words none
@@ -969,35 +969,35 @@ slim/register [
 		;--------
 		; at this point we have properly constructed query! instance ready to perform
 		;--------
-		v?? query
+		;v?? query
 		query-blk: copy/deep query/query 
 		bind query-blk query/variables
 
-		v?? query-blk
+		;v?? query-blk
 		either allow-unquoted [
 			query-blk: reduce-query/allow-unquoted query-blk
 		][
 			query-blk: reduce-query query-blk
 		]
 		
-		v?? query-blk
+		;v?? query-blk
 		replace/all query-blk #[none] "NULL"
 		
-		vprint "============================"
-		v?? query-blk
-		vprint "============================"
+		;vprint "============================"
+		;v?? query-blk
+		;vprint "============================"
 		query-str: form query-blk
 		
 		unless #";" = last query-str [
 			append query-str ";"
 		]
 		
-		v?? query-str
+		;v?? query-str
 		
 		either check [
-			print "=========================================="
-			print query-str
-			print "=========================================="
+			;print "=========================================="
+			;print query-str
+			;print "=========================================="
 			result: none
 		][
 		
@@ -1005,7 +1005,7 @@ slim/register [
 		]
 		
 				
-		vout
+		;vout
 		
 		result
 	]
@@ -1075,11 +1075,11 @@ slim/register [
 					]
 				]
 				(
-					v?? .type
+					;v?? .type
 					.sql-type: sql-type .type .current-options
 				)
 				any [
-					set .options block! (v?? .options append .current-options .options)
+					set .options block! ( .options append .current-options .options) ;v?? .options
 					
 					| set .option [
 						  'PRIMARY 
@@ -1088,8 +1088,8 @@ slim/register [
 						| 'AUTO-INCREMENT 
 						| 'AUTO_INCREMENT
 					] ( 
-						v?? .current-options
-						v?? .option
+						;v?? .current-options
+						;v?? .option
 						if .option = 'AUTO_INCREMENT [ .option: 'AUTO-INCREMENT]
 						unless find .current-options .option [
 							append .current-options .option
@@ -1106,7 +1106,7 @@ slim/register [
 		remove back tail qry ; just remove last comma
 		; end statement
 		append qry "^/);"
-		v?? qry
+		;v?? qry
 		
 		
 		result: query qry none
@@ -1148,7 +1148,7 @@ slim/register [
 		columns [block!]
 		data [block!]
 	][
-		vin "insert-sql()"
+		;vin "insert-sql()"
 		
 		;v?? columns
 		;v?? data
@@ -1190,13 +1190,13 @@ slim/register [
 		]
 		take/last qry
 		
-		v?? qry
-		v?? qry-values
+		;v?? qry
+		;v?? qry-values
 		
 		
 		query qry qry-values
 		
-		vout
+		;vout
 	]
 	
 	
@@ -1228,7 +1228,7 @@ slim/register [
 		
 		script: parse-mysql-ctx/mysql-script
 		
-		v?? script
+		;v?? script
 	
 		do script
 	
