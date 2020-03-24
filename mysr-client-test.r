@@ -59,7 +59,7 @@ MYSR-QUERY-BUFFERSIZE: 12'000'000
 ;-     dbname:
 ;
 ;--------------------------
-dbname: 'blah
+dbname: 'siemens
 
 
 ;--------------------------
@@ -79,9 +79,9 @@ session: none
 ;	contact-db
 ;	product-db
 ;]
-;only-rebuild-db: [client-domain-db] 
+only-rebuild-db: [product-db sap-db] 
 ;only-rebuild-db: none
-only-rebuild-db: [client-db contact-db domain-equiv-db sap-db products-db client-domain-db discount-db]
+;only-rebuild-db: [client-db contact-db domain-equiv-db sap-db products-db client-domain-db discount-db]
 
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
@@ -256,12 +256,10 @@ bulk-lib/default-null: ""
 ;-     CLIENT-DB
 ;
 ;-----------------------------------------------------------------------------------------------------------
-;either all [
-;	any [
-;		not only-rebuild-db
-;		find only-rebuild-db 'client-db
-;	]
-;][
+if any [
+	not only-rebuild-db
+	find only-rebuild-db 'client-db
+][
 	print "PROCESSING CLIENT DB"
 	client-db: csv-to-bulk/select  join dir %data/siemens-client-db.csv [Customer Name1 Name2 PL Grp2 CustomerGroup2]
 	rebuild-client-rule?: true
@@ -269,7 +267,7 @@ bulk-lib/default-null: ""
 	;v?? CLIENT-DB
 	;ask "..."
 	print "PROCESSING CLIENT DB DONE"
-;]
+]
 
 
 
@@ -280,12 +278,13 @@ bulk-lib/default-null: ""
 ;-     CONTACT-DB
 ;
 ;-----------------------------------------------------------------------------------------------------------
-;either all [
-;	any [
-;		not only-rebuild-db
-;		find only-rebuild-db 'contact-db
-;	]
-;][
+if any [
+	not only-rebuild-db
+	all [
+		find only-rebuild-db 'client-db
+		find only-rebuild-db 'contact-db
+	]
+][
 	vprint "PROCESSING CONTACT DB"	
 	contact-db: csv-to-bulk/utf8/select join dir %data/siemens-contact-db.csv  [ Email Surname FirstName CompanyNumber]
 	;==============
@@ -403,7 +402,7 @@ bulk-lib/default-null: ""
 	]
 	
 	vprint "PROCESSING CONTACT DB DONE"
-;]
+]
 
 
 ;-                                                                                                       .
@@ -412,19 +411,17 @@ bulk-lib/default-null: ""
 ;-     DOMAIN-EQUIV-DB
 ;
 ;-----------------------------------------------------------------------------------------------------------
-;if all [
-;	any [
-;		not only-rebuild-db
-;		find only-rebuild-db 'domain-equiv-db
-;	]
-;][
+if any [
+	not only-rebuild-db
+	find only-rebuild-db 'domain-equiv-db
+][
 	vprint "PROCESSING DOMAIN-EQUIV DB"
 	domain-equiv-db: csv-to-bulk/utf8/select dir/data/siemens-domain-equiv-db.csv [Domain ClientID]
 	v?? domain-equiv-db
 	domain-equiv-db: to-hash copy next domain-equiv-db
 	
 	vprint "PROCESSING DOMAIN-EQUIV DB DONE"
-;]
+]
 
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
@@ -432,100 +429,112 @@ bulk-lib/default-null: ""
 ;-     SAP-DB
 ;
 ;-----------------------------------------------------------------------------------------------------------
-print "PROCESSING SAP DB"
-sap-db: csv-to-bulk/select/every join dir %data/siemens-sap-products-db.csv [ProductCode Material] [ProductCode: make-product-code ProductNumberPrint Options] 
-sap-db: to-hash next sap-db
+if any [
+	not only-rebuild-db
+	find only-rebuild-db 'sap-db
+][
+	print "PROCESSING SAP DB"
+	sap-db: csv-to-bulk/select/every join dir %data/siemens-sap-products-db.csv [ProductCode Material] [ProductCode: make-product-code ProductNumberPrint Options] 
+	sap-db: to-hash next sap-db
 
-print "PROCESSING SAP DB DONE"
+	print "PROCESSING SAP DB DONE"
 ;vprint ["LOADING SAP DB DONE (" delay ")" ]
-
+]
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
 ;
 ;-     PRODUCT-DB
 ;
 ;-----------------------------------------------------------------------------------------------------------
-vprint "PROCESSING PRODUCT DB"
-product-filter-file: join dir %data/siemens-product-filter.txt
-filter-data: none
-if exists? product-filter-file [
-	filter-data: read/lines 
-	filter-data: to-hash filter-data
-]
-;[NetWeight: decimal! L1SparePartPrice: decimal! L1RepairPrice: decimal! L1ExchangePrice: decimal! L2SparePartPrice: decimal! L2RepairPrice: decimal! L2ExchangePrice: decimal! SparePartLeadTime: integer! RepairLeadTime: integer!]
-products-db: csv-to-bulk/select/every/where/types dir/data/siemens-product-db-extractor3.csv [ProductCode MLFB Options SAPMaterialCode SpareNewStatus ProductMilestone RepairStatus NetWeight WeightUnit L1SparePartPrice L1RepairPrice L1ExchangePrice L2SparePartPrice L2RepairPrice L2ExchangePrice SparePartLeadTime RepairLeadTime ShortDescription PCK][
-	ProductCode: make-product-code MLFB options
-	SAPMaterialCode: select sap-db ProductCode
-	;v?? ProductCode
-	opt: none
-	;v?? L2_SP_Price
-	if [
-		string? options
-		empty? trim options
-	][
-		options: none
+if any [
+	not only-rebuild-db
+	all [
+		find only-rebuild-db 'sap-db
+		find only-rebuild-db 'product-db
 	]
 ][
-	;where statement
-	any [
-		not filter-data
-		find filter-data mlfb
+	vprint "PROCESSING PRODUCT DB"
+	product-filter-file: join dir %data/siemens-product-filter.txt
+	filter-data: none
+	if exists? product-filter-file [
+		filter-data: read/lines 
+		filter-data: to-hash filter-data
 	]
-][
-	;types statement
-	NetWeight: decimal! 
-	L1SparePartPrice: decimal! 
-	L1RepairPrice: decimal! 
-	L1ExchangePrice: decimal! 
-	L2SparePartPrice: decimal! 
-	L2RepairPrice: decimal! 
-	L2ExchangePrice: decimal! 
-	SparePartLeadTime: integer! 
-	RepairLeadTime: integer!
-]
-sort-bulk/reverse/using products-db 'ProductCode
-
-vprint "PROCESSING PRODUCT DB DONE"
-
-;v?? products-db
-
-;dataset: []
-;
-;repeat i 1000 [
-;	repend dataset [ to-string i rejoin [to-string i to-string i to-string i ] rejoin [to-string i "-options"] i ]
-;]
-
-
-columns: products-db/1/4
-;v?? columns
-;ask "..."
-;v?? products-db
-;ask "..."
-counter: 0
-;voff
-;mysr/voff
-it: dt compose/only [
-	foreach (columns) next products-db[ ;products-db [
-		bind columns 'ProductCode
-		;vprobe reduce columns
-		;ask "..."
-		insert-sql 'product columns reduce columns
-		if 0 = modulo counter 100 [
-			vprint counter
+	;[NetWeight: decimal! L1SparePartPrice: decimal! L1RepairPrice: decimal! L1ExchangePrice: decimal! L2SparePartPrice: decimal! L2RepairPrice: decimal! L2ExchangePrice: decimal! SparePartLeadTime: integer! RepairLeadTime: integer!]
+	products-db: csv-to-bulk/select/every/where/types dir/data/siemens-product-db-extractor3.csv [ProductCode MLFB Options SAPMaterialCode SpareNewStatus ProductMilestone RepairStatus NetWeight WeightUnit L1SparePartPrice L1RepairPrice L1ExchangePrice L2SparePartPrice L2RepairPrice L2ExchangePrice SparePartLeadTime RepairLeadTime ShortDescription PCK][
+		ProductCode: make-product-code MLFB options
+		SAPMaterialCode: select sap-db ProductCode
+		;v?? ProductCode
+		opt: none
+		;v?? L2_SP_Price
+		if [
+			string? options
+			empty? trim options
+		][
+			options: none
 		]
-		counter: counter + 1
-		;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
+	][
+		;where statement
+		any [
+			not filter-data
+			find filter-data mlfb
+		]
+	][
+		;types statement
+		NetWeight: decimal! 
+		L1SparePartPrice: decimal! 
+		L1RepairPrice: decimal! 
+		L1ExchangePrice: decimal! 
+		L2SparePartPrice: decimal! 
+		L2RepairPrice: decimal! 
+		L2ExchangePrice: decimal! 
+		SparePartLeadTime: integer! 
+		RepairLeadTime: integer!
 	]
-]
-;mysr/von
-;von
+	sort-bulk/reverse/using products-db 'ProductCode
 
-;vprint ["insert time: " it]
-;v?? it
+	vprint "PROCESSING PRODUCT DB DONE"
+
+	;v?? products-db
+
+	;dataset: []
+	;
+	;repeat i 1000 [
+	;	repend dataset [ to-string i rejoin [to-string i to-string i to-string i ] rejoin [to-string i "-options"] i ]
+	;]
 
 
-t: dt [
-	result: sql "select * FROM product ;"
+	columns: products-db/1/4
+	;v?? columns
+	;ask "..."
+	;v?? products-db
+	;ask "..."
+	counter: 0
+	;voff
+	;mysr/voff
+	it: dt compose/only [
+		foreach (columns) next products-db[ ;products-db [
+			bind columns 'ProductCode
+			;vprobe reduce columns
+			;ask "..."
+			insert-sql 'product columns reduce columns
+			if 0 = modulo counter 100 [
+				vprint counter
+			]
+			counter: counter + 1
+			;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
+		]
+	]
+	;mysr/von
+	;von
+
+	;vprint ["insert time: " it]
+	;v?? it
+
+
+	t: dt [
+		result: sql "select * FROM product ;"
+	]
 ]
 ;vprint ["select time: " t]
 ;v?? result
