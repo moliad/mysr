@@ -79,7 +79,8 @@ session: none
 ;	contact-db
 ;	product-db
 ;]
-only-rebuild-db: [product-db sap-db] 
+;only-rebuild-db: [product-db sap-db] 
+only-rebuild-db: [discount-db] 
 ;only-rebuild-db: none
 ;only-rebuild-db: [client-db contact-db domain-equiv-db sap-db products-db client-domain-db discount-db]
 
@@ -158,6 +159,38 @@ dbs: list-dbs
 
 ;trace-sql %mysr-trace.log
 
+
+;-                                                                                                       .
+;-----------------------------------------------------------------------------------------------------------
+;
+;- FUNCTIONS
+;
+;-----------------------------------------------------------------------------------------------------------
+;--------------------------
+
+;-     get-discount-code()
+;--------------------------
+; purpose: Get a discount code using CustomerLevel_ID-MaterialLevel-MaterialLevel_ID-Channel
+;
+; inputs:   
+;
+; returns:  
+;
+; notes:    
+;
+; to do:    
+;
+; tests:    
+;--------------------------
+get-discount-code: funcl [
+	CustomerLevel_ID [string!]
+	MaterialLevel [string!]
+	MaterialLevel_ID [string!]
+	Channel [string! integer!]
+][
+	rejoin [CustomerLevel_ID "-" MaterialLevel "-" MaterialLevel_ID "-" Channel]
+]
+
 ;--------------------------
 ;-     make-product-code()
 ;--------------------------
@@ -231,6 +264,11 @@ do-mysql [
 		RepairLeadTime		integer!
 		ShortDescription	text!
 		PCK					10
+	]
+	
+	CREATE TABLE 'discount [
+		DiscountCode	100
+		Discount		decimal!
 	]
 	
 	CREATE TABLE 'contact [
@@ -493,7 +531,6 @@ if any [
 	]
 	sort-bulk/reverse/using products-db 'ProductCode
 
-	vprint "PROCESSING PRODUCT DB DONE"
 
 	;v?? products-db
 
@@ -525,6 +562,7 @@ if any [
 			;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
 		]
 	]
+	vprint "PROCESSING PRODUCT DB DONE"
 	;mysr/von
 	;von
 
@@ -536,6 +574,54 @@ if any [
 		result: sql "select * FROM product ;"
 	]
 ]
+
+;-                                                                                                       .
+;-----------------------------------------------------------------------------------------------------------
+;
+;-     DISCOUNT-DB
+;
+;-----------------------------------------------------------------------------------------------------------
+if any [
+	not only-rebuild-db
+	all [
+		find only-rebuild-db 'discount-db
+	]
+][
+	vprint "PROCESSING DISCOUNT DB"
+	discount.csv: as-string read/binary join dir %data/siemens-discount-db.csv
+
+	discount-db: csv-to-bulk/select/each discount.csv [DiscountCode Discount] [
+		DiscountCode: get-discount-code CustomerLevel_ID MaterialLevel MaterialLevel_ID Channel 
+		Discount: either DiscountUnit = "EUR" [
+			to-money Net_or_Discount_Value
+		][
+			to-decimal Net_or_Discount_Value
+		]
+	]
+	columns: discount-db/1/4
+	v?? columns
+	;v?? columns
+	;ask "..."
+	counter: 0
+	;voff
+	;mysr/voff
+	it: dt compose/only [
+		foreach (columns) next discount-db[ ;contact-db [
+			bind columns 'DiscountCode
+			;vprobe reduce columns
+			;ask "..."
+			insert-sql 'discount columns reduce columns
+			if 0 = modulo counter 100 [
+				vprint counter
+			]
+			counter: counter + 1
+			;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
+		]
+	]
+	discount.csv: none ; clear from GC
+	vprint "PROCESSING DISCOUNT DB DONE"
+]
+
 ;vprint ["select time: " t]
 ;v?? result
 
