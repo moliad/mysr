@@ -61,6 +61,12 @@ MYSR-QUERY-BUFFERSIZE: 12'000'000
 ;--------------------------
 dbname: 'siemens
 
+;--------------------------
+;- wipe-db:
+;
+; TRUE to wipe FALSE to keep db
+;--------------------------
+wipe-db: FALSE
 
 ;--------------------------
 ;-     session:
@@ -79,10 +85,23 @@ session: none
 ;	contact-db
 ;	product-db
 ;]
-;only-rebuild-db: [product-db sap-db] 
-only-rebuild-db: [discount-db] 
 ;only-rebuild-db: none
+only-rebuild-db: [product-db sap-db] 
+create-table: none 
+;create-table: [product] 
+;only-rebuild-db: [domain-equiv-db] 
 ;only-rebuild-db: [client-db contact-db domain-equiv-db sap-db products-db client-domain-db discount-db]
+
+;-----------------------------------------------------------------------------------------------------------
+;
+;- PARSE RULES
+;
+;-----------------------------------------------------------------------------------------------------------
+
+=alpha=: charset [#"a" - #"z" #"A" - #"Z"]
+=numeric=: =digit=: charset [#"0" - #"9"]
+=alpha-num=: union =alpha= =numeric=
+=not-alphanum=: complement =alpha-num=
 
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
@@ -168,6 +187,37 @@ dbs: list-dbs
 ;-----------------------------------------------------------------------------------------------------------
 ;--------------------------
 
+;--------------------------
+;-     accumulate()
+;--------------------------
+; purpose:  Helper that accumulates value in a block if not already there
+;
+; inputs:   
+;
+; returns:  
+;
+; notes:    /normalize puts the entry string in uppercase and remove separators
+;
+; to do:    
+;
+; tests:    
+;--------------------------
+accumulate: funcl [
+	what		[string!]	"String to normalize"
+	/normalize				"Set to uppercase and remove separators"
+][
+	;vin "accumulate()"
+	what-cp: copy what	; Because remove-each is in-place
+	if normalize [
+		; Remove separators
+		remove-each c what-cp [parse/all to-string c [=not-alphanum=]]
+		; To uppercase
+		what-cp: uppercase what-cp
+	]
+				
+	;vout
+]
+	
 ;-     get-discount-code()
 ;--------------------------
 ; purpose: Get a discount code using CustomerLevel_ID-MaterialLevel-MaterialLevel_ID-Channel
@@ -237,53 +287,144 @@ make-product-code: funcl [
 	code
 ]
 
-if find dbs to-string dbname [
+if all [
+	find dbs to-string dbname
+	wipe-db
+][
 	query ["drop database " db] dbname
 ]	
 
-do-mysql [
-	CREATE DATABASE :dbname
-
-	CREATE TABLE 'product [
-		ProductCode 		120 primary
-		MLFB				20
-		Options				100
-		SAPMaterialCode
-		SpareNewStatus		5
-		ProductMilestone	20
-		RepairStatus		5
-		NetWeight			decimal!
-		WeightUnit			5
-		L1SparePartPrice	decimal!
-		L1RepairPrice		decimal!
-		L1ExchangePrice		decimal!
-		L2SparePartPrice	decimal!
-		L2RepairPrice		decimal!
-		L2ExchangePrice		decimal!
-		SparePartLeadTime	integer!
-		RepairLeadTime		integer!
-		ShortDescription	text!
-		PCK					10
-	]
+if any [
+	not create-table
+	find create-table 'contact
+][
+	do-mysql [
+		CREATE DATABASE :dbname
 	
-	CREATE TABLE 'discount [
-		DiscountCode	100
-		Discount		decimal!
-	]
-	
-	CREATE TABLE 'contact [
-		Email				100
-		Surname				40
-		FirstName			40
-		CompanyNumber		100
-		Name1				120
-		Name2				120
-		PL					2
-		Grp2				30
-		CustomerGroup2		30
+		CREATE TABLE 'contact [
+			Email				100
+			Surname				40
+			FirstName			40
+			CompanyNumber		100
+			Name1				120
+			Name2				120
+			PL					2
+			Grp2				30
+			CustomerGroup2		30
+		]
 	]
 ]
 
+if any [
+	not create-table
+	find create-table 'domain 
+][
+	do-mysql [
+		CREATE DATABASE :dbname
+	
+		CREATE TABLE 'domain [
+			Domain				100
+			ClientID			20
+		]
+	]
+]
+
+if any [
+	not create-table
+	find create-table 'product 
+][
+	do-mysql [
+		CREATE DATABASE :dbname
+	
+		CREATE TABLE 'product [
+			ProductCode 			120 primary
+			NormalizedProductCode 	120 
+			MLFB					20
+			Options					100
+			SAPMaterialCode			120
+			SpareNewStatus			5
+			ProductMilestone		20
+			RepairStatus			5
+			NetWeight				decimal!
+			WeightUnit				5
+			L1SparePartPrice		decimal!
+			L1RepairPrice			decimal!
+			L1ExchangePrice			decimal!
+			L2SparePartPrice		decimal!
+			L2RepairPrice			decimal!
+			L2ExchangePrice			decimal!
+			SparePartLeadTime		integer!
+			RepairLeadTime			integer!
+			ShortDescription		text!
+			PCK						10
+		]
+	]
+]
+
+if any [
+	not create-table
+	find create-table 'discount
+][
+	do-mysql [
+		CREATE DATABASE :dbname
+	
+		CREATE TABLE 'discount [
+			DiscountCode	100
+			Discount		decimal!
+		]
+	]
+]
+
+;if not create-table [
+;	do-mysql [
+;		CREATE DATABASE :dbname
+;
+;		CREATE TABLE 'contact [
+;			Email				100
+;			Surname				40
+;			FirstName			40
+;			CompanyNumber		100
+;			Name1				120
+;			Name2				120
+;			PL					2
+;			Grp2				30
+;			CustomerGroup2		30
+;		]
+;		
+;		CREATE TABLE 'domain [
+;			Domain				100
+;			ClientID			20
+;		]
+;
+;		CREATE TABLE 'product [
+;			ProductCode 			120 primary
+;			NormalizedProductCode 	120 
+;			MLFB					20
+;			Options					100
+;			SAPMaterialCode			120
+;			SpareNewStatus			5
+;			ProductMilestone		20
+;			RepairStatus			5
+;			NetWeight				decimal!
+;			WeightUnit				5
+;			L1SparePartPrice		decimal!
+;			L1RepairPrice			decimal!
+;			L1ExchangePrice			decimal!
+;			L2SparePartPrice		decimal!
+;			L2RepairPrice			decimal!
+;			L2ExchangePrice			decimal!
+;			SparePartLeadTime		integer!
+;			RepairLeadTime			integer!
+;			ShortDescription		text!
+;			PCK						10
+;		]
+;
+;		CREATE TABLE 'discount [
+;			DiscountCode	100
+;			Discount		decimal!
+;		]
+;	]
+;]
 bulk-lib/default-null: ""
 
 
@@ -455,9 +596,27 @@ if any [
 ][
 	vprint "PROCESSING DOMAIN-EQUIV DB"
 	domain-equiv-db: csv-to-bulk/utf8/select dir/data/siemens-domain-equiv-db.csv [Domain ClientID]
-	v?? domain-equiv-db
-	domain-equiv-db: to-hash copy next domain-equiv-db
+	;v?? domain-equiv-db
 	
+	columns: domain-equiv-db/1/4
+	;v?? columns
+	;ask "..."
+	counter: 0
+	;voff
+	;mysr/voff
+	it: dt compose/only [
+		foreach (columns) next domain-equiv-db[ 
+			bind columns 'Domain
+			;vprobe reduce columns
+			;ask "..."
+			insert-sql 'domain columns reduce columns
+			if 0 = modulo counter 100 [
+				vprint counter
+			]
+			counter: counter + 1
+			;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
+		]
+	]
 	vprint "PROCESSING DOMAIN-EQUIV DB DONE"
 ]
 
@@ -494,15 +653,20 @@ if any [
 	vprint "PROCESSING PRODUCT DB"
 	product-filter-file: join dir %data/siemens-product-filter.txt
 	filter-data: none
+	NormalizedProductCode: none
 	if exists? product-filter-file [
 		filter-data: read/lines 
 		filter-data: to-hash filter-data
 	]
 	;[NetWeight: decimal! L1SparePartPrice: decimal! L1RepairPrice: decimal! L1ExchangePrice: decimal! L2SparePartPrice: decimal! L2RepairPrice: decimal! L2ExchangePrice: decimal! SparePartLeadTime: integer! RepairLeadTime: integer!]
-	products-db: csv-to-bulk/select/every/where/types dir/data/siemens-product-db-extractor3.csv [ProductCode MLFB Options SAPMaterialCode SpareNewStatus ProductMilestone RepairStatus NetWeight WeightUnit L1SparePartPrice L1RepairPrice L1ExchangePrice L2SparePartPrice L2RepairPrice L2ExchangePrice SparePartLeadTime RepairLeadTime ShortDescription PCK][
+	products-db: csv-to-bulk/select/every/where/types dir/data/siemens-product-db-extractor3.csv [ProductCode NormalizedProductCode MLFB Options SAPMaterialCode SpareNewStatus ProductMilestone RepairStatus NetWeight WeightUnit L1SparePartPrice L1RepairPrice L1ExchangePrice L2SparePartPrice L2RepairPrice L2ExchangePrice SparePartLeadTime RepairLeadTime ShortDescription PCK][
 		ProductCode: make-product-code MLFB options
+		;v?? ProductCode
+		NormalizedProductCode: accumulate/normalize ProductCode
+		;v?? ProductCode
 		SAPMaterialCode: select sap-db ProductCode
 		;v?? ProductCode
+		;ask "..."
 		opt: none
 		;v?? L2_SP_Price
 		if [
@@ -530,7 +694,6 @@ if any [
 		RepairLeadTime: integer!
 	]
 	sort-bulk/reverse/using products-db 'ProductCode
-
 
 	;v?? products-db
 
