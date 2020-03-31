@@ -172,6 +172,53 @@ slim/register [
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------
 	;
+	;- REBOL ERROR
+	;
+	;-----------------------------------------------------------------------------------------------------------
+	system/error: make system/error [
+		mysql: make object! [
+			code: 1000 ; not guaranteed... real value is:  (index of object in system/error block) * 100
+			type: "MySQL Error" 
+			
+			; error definitions start here:
+			generic: [ rejoin [ "" :arg1 ] ]
+			connector: [ rejoin [ "MySQL Connector ERROR: " :arg1 ] ]
+			null: [  "MySQL NULL RESULT ERROR" ]
+			invalid-result: [ "MySQL Invalid return" ]
+		]
+	]
+
+
+;	;--------------------------
+;	;-     make-error()
+;	;--------------------------
+;	; purpose:  
+;	;
+;	; inputs:   
+;	;
+;	; returns:  
+;	;
+;	; notes:    
+;	;
+;	; to do:    
+;	;
+;	; tests:    
+;	;--------------------------
+;	make-error: funcl [
+;		[catch]
+;		type [word!]
+;		msg [string!]
+;	][
+;		;vin "make-error()"
+;		;vout
+;		;throw-on-error [
+;			throw make error! compose [ mysql (type) (msg) ]
+;		]
+;	]
+	
+	;-                                                                                                       .
+	;-----------------------------------------------------------------------------------------------------------
+	;
 	;- ROUTINES
 	;
 	;-----------------------------------------------------------------------------------------------------------
@@ -415,13 +462,6 @@ slim/register [
 
 
 
-	;-                                                                                                       .
-	;-----------------------------------------------------------------------------------------------------------
-	;
-	;- SHIM FUNCTIONS
-	;
-	;-----------------------------------------------------------------------------------------------------------
-
 	;--------------------------
 	;-     trace-sql()
 	;--------------------------
@@ -547,48 +587,6 @@ slim/register [
 	]
 
 
-	;--------------------------
-	;-     list-dbs()
-	;--------------------------
-	; purpose:  
-	;
-	; inputs:   
-	;
-	; returns:  
-	;
-	; notes:    
-	;
-	; to do:    
-	;
-	; tests:    
-	;--------------------------
-	list-dbs: funcl [
-		[catch]
-		/like filter [string!]
-		/using session [integer!]
-		/extern default-session
-	][
-		vin "list-dbs()"
-		session: any [session default-session]
-		filter: any [filter ""]
-		
-		;v?? filter
-		;vprobe session
-		
-		unless session [
-			throw-on-error [
-				to-error "list-dbs() must connect to server first"
-				none
-			]
-		]
-		data: mysr.list-dbs session filter
-		result: load data
-		vout
-		first reduce [result result: data: none]
-	]
-
-	
-	
 
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------
@@ -826,20 +824,22 @@ slim/register [
 	;--------------------------
 	;-     mysql()
 	;--------------------------
-	; purpose:  
+	; purpose:  lowest level function which sends a textual query and receives a textual response.
 	;
 	; inputs:   
 	;
 	; returns:  
 	;
-	; notes:    
+	; notes:    this function usually isn`t called directly within 
 	;
 	; to do:    
 	;
 	; tests:    
 	;--------------------------
 	mysql: funcl [
+		[catch]
 		query [string! block!]
+		/raw "returns the raw result string from mysr"
 	][
 		;vin "mysql()"
 		session: any [ session default-session ]
@@ -854,11 +854,15 @@ slim/register [
 			query: rejoin query
 		]
 		
-		data: mysr.query session query
-		result: load data
+		throw-on-error [
+			data: mysr.query session query
+			unless raw [
+				data: load-mysr data
+			]
+		]
 		;vout
 		
-		first reduce [result result: data: none]
+		first reduce [data data: none]
 	]
 	
 	
@@ -878,138 +882,199 @@ slim/register [
 	; tests:    
 	;--------------------------
 	query: funcl [
+		[catch]
 		query   [object! block! string!]
 		values  [object! string! block! none! word!]
 		/check "Do not actually run the query, just print out what it would look like in sql."
 		/allow-unquoted "get-word! values are allowed in given query"
 	][
-		;vin "query()"
-		word: none
-		result: none
-		;v?? query
-		;v?? values
-		if any [
-			string? values
-			word? values
-		] [
-			values: reduce [values]
-		]
-		
-		if string? query [
-			query: reduce [query]
-		]
-		
-		if block? query [
-			; I guess the following is a query  ;-D
-			query: make query! compose/only [query: (query)]
-			;v?? query
-		]
-		
-		if string? values [
-			; a string is a block of 1 argument
-			values: reduce [values]
-		]
-		
-		switch type?/word values [
-			object! [
-				query/variables: make query/variables values 
-			]
-		
-			block! [
-				;vprint "got block variables"
-				; when given a block of values, we assume these are given in numerical order,
-				;
-				; the first value is set to the first variable (any word!) in the query
-				words: copy []
-				variables: copy []
-				ctx-words: words-of query/variables
-				;v?? query/query
-				
-				parse query/query [
-					some [
-						set word word! (
-							;vprint ["FOUND variable: " word]
-							unless find variables word [
-								append variables word
-							]
-							unless find ctx-words word [
-								append words to-set-word word
-								append ctx-words word ; we don't want to add the same word twice.
-							]
-						)
-						| skip
-					]
-				]
-				;v?? words
-				;v?? variables
-				
-				unless empty? words [
-					append words none
-					query/variables: make query/variables words 
-				]
-				
-				; add a refinement for missing values as null?
-				if (length? values) < (length? variables) [
-					to-error ["mysr/query() missing values for given query : " mold query/query]
-				]
-				
-				i: 1
-				foreach word variables [
-					value: any [
-						pick values i 
-						;"NULL"
-					]
-					set (in query/variables word) value
-					++ i
-				]
-			]
-		]
-		
-		
-		;--------
-		; at this point we have properly constructed query! instance ready to perform
-		;--------
-		;v?? query
-		query-blk: copy/deep query/query 
-		bind query-blk query/variables
-
-		;v?? query-blk
-		either allow-unquoted [
-			query-blk: reduce-query/allow-unquoted query-blk
-		][
-			query-blk: reduce-query query-blk
-		]
-		
-		;v?? query-blk
-		replace/all query-blk #[none] "NULL"
-		
-		;vprint "============================"
-		;v?? query-blk
-		;vprint "============================"
-		query-str: form query-blk
-		
-		unless #";" = last query-str [
-			append query-str ";"
-		]
-		
-		;v?? query-str
-		
-		either check [
-			;print "=========================================="
-			;print query-str
-			;print "=========================================="
+		vin "query()"
+		throw-on-error [
+		;0 / 0
+			word: none
 			result: none
-		][
-		
-			result: mysql query-str
+			v?? query
+			;v?? values
+			if any [
+				string? values
+				word? values
+			] [
+				values: reduce [values]
+			]
+			
+			if string? query [
+				query: reduce [query]
+			]
+			
+			if block? query [
+				; I guess the following is a query  ;-D
+				query: make query! compose/only [query: (query)]
+				;v?? query
+			]
+			
+			if string? values [
+				; a string is a block of 1 argument
+				values: reduce [values]
+			]
+			
+			switch type?/word values [
+				object! [
+					query/variables: make query/variables values 
+				]
+			
+				block! [
+					;vprint "got block variables"
+					; when given a block of values, we assume these are given in numerical order,
+					;
+					; the first value is set to the first variable (any word!) in the query
+					words: copy []
+					variables: copy []
+					ctx-words: words-of query/variables
+					;v?? query/query
+					
+					parse query/query [
+						some [
+							set word word! (
+								;vprint ["FOUND variable: " word]
+								unless find variables word [
+									append variables word
+								]
+								unless find ctx-words word [
+									append words to-set-word word
+									append ctx-words word ; we don't want to add the same word twice.
+								]
+							)
+							| skip
+						]
+					]
+					;v?? words
+					;v?? variables
+					
+					unless empty? words [
+						append words none
+						query/variables: make query/variables words 
+					]
+					
+					; add a refinement for missing values as null?
+					if (length? values) < (length? variables) [
+						to-error ["mysr/query() missing values for given query : " mold query/query]
+					]
+					
+					i: 1
+					foreach word variables [
+						value: any [
+							pick values i 
+							;"NULL"
+						]
+						set (in query/variables word) value
+						++ i
+					]
+				]
+			]
+			
+			;--------
+			; at this point we have properly constructed query! instance ready to perform
+			;--------
+			;v?? query
+			query-blk: copy/deep query/query 
+			bind query-blk query/variables
+
+			;v?? query-blk
+			either allow-unquoted [
+				query-blk: reduce-query/allow-unquoted query-blk
+			][
+				query-blk: reduce-query query-blk
+			]
+			
+			;v?? query-blk
+			replace/all query-blk #[none] "NULL"
+			
+			;vprint "============================"
+			;v?? query-blk
+			;vprint "============================"
+			query-str: form query-blk
+			
+			unless #";" = last query-str [
+				append query-str ";"
+			]
+			;v?? query-str
+			
+			either check [
+				; user just wants a trace of what the query would be in final SQL
+				print "=========================================="
+				print query-str
+				print "=========================================="
+				result: none
+			][
+				mysql-result: mysql/raw query-str
+				v?? [length? mysql-result]
+				;v?? mysql-result
+				result: load-mysr mysql-result
+				;v?? result
+			]
+			vout
 		]
-		
-				
-		;vout
-		
-		result
+		;-----
+		; clean GC result
+		first reduce [result result: mysql-result: query-str: query-blk: values: query: words: ctx-words: none]
 	]
 	
+	
+	;--------------------------
+	;-     load-mysr()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	load-mysr: funcl [
+		[catch]
+		data [string!]
+	][
+		vin "load-mysr()"
+	
+		throw-on-error [
+			result: load data
+			
+			;v?? result
+			
+			either block? :result [
+				type: first result
+				;v?? type
+				;v?? [word? type]
+				either word? :type [
+					v?? type
+					switch type [
+						grid [
+							result: pick result 2
+						]
+						
+						error [
+							do next result
+						]
+						
+						rows [
+							result: pick result 2
+						]
+					]
+				][
+					make error! [mysql invalid-result]
+				]
+			][
+				make error! [mysql null]
+			]
+		]
+		vout
+		result
+	]
 
 
 	;-                                                                                                       .
@@ -1017,9 +1082,70 @@ slim/register [
 	;
 	;- HIGH-LEVEL FUNCTIONS
 	;
+	; all of these functions MUST pass through load-mysr()
 	;-----------------------------------------------------------------------------------------------------------
-	
 
+
+	;--------------------------
+	;-     list-dbs()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	list-dbs: funcl [
+		[catch]
+		/like filter [string!]
+		/using session [integer!]
+		/system "also include mysql system tables"
+		/extern default-session
+	][
+		vin "list-dbs()"
+		session: any [session default-session]
+		filter: any [filter ""]
+		
+		;v?? filter
+		;vprobe session
+		
+		unless session [
+			throw-on-error [
+				to-error "list-dbs() must connect to server first"
+				none
+			]
+		]
+		data: mysr.list-dbs session filter
+		
+		
+		throw-on-error [
+			result: load-mysr data
+			if all [
+				block? result 
+				block? pick result 1
+				integer? select result/1 first [columns:]
+			][
+				remove result  ; just remove bulk header
+				unless system [
+					result: exclude result ["information_schema" "performance_schema" "sys" "mysql"]
+				]
+				;v?? result
+			]
+		]
+		v?? [length? result]
+		
+		;result: load data
+		vout
+		first reduce [result result: data: none]
+	]
+
+	
 	;--------------------------
 	;-     create-table()
 	;--------------------------
@@ -1036,6 +1162,7 @@ slim/register [
 	; tests:    
 	;--------------------------
 	create-table: funcl [
+		[catch]
 		name [word!]
 		columns [block!]
 	][
@@ -1095,7 +1222,10 @@ slim/register [
 							append .current-options .option
 						]
 					)
-					| set .size integer! (v?? size append .current-options .size )
+					| set .size integer! (
+						v?? .size 
+						append .current-options .size 
+					)
 				]
 				(
 					append qry reduce [ "^-" .name .sql-type (sql-options .current-options)]
@@ -1108,8 +1238,9 @@ slim/register [
 		append qry "^/);"
 		;v?? qry
 		
-		
-		result: query qry none
+		throw-on-error [
+			result: query qry none
+		]
 		
 	;	qry: reduce-query/allow-unquoted qry
 	;	v?? qry
@@ -1192,8 +1323,6 @@ slim/register [
 		
 		;v?? qry
 		;v?? qry-values
-		
-		
 		query qry qry-values
 		
 		;vout
@@ -1220,25 +1349,18 @@ slim/register [
 	; tests:    
 	;--------------------------
 	do-mysql: funcl [
+		[catch]
 		instructions [block!]
 	][
 		vin "do-mysql()"
-	
-		parse instructions parse-mysql-ctx/=mysql= 
-		
-		script: parse-mysql-ctx/mysql-script
-		
-		;v?? script
-	
-		do script
-	
+		throw-on-error [
+			parse instructions parse-mysql-ctx/=mysql= 
+			script: parse-mysql-ctx/mysql-script
+			;v?? script
+			do script
+		]
 		vout
 	]
-	
-
-	
-	
-	
 	
 	
 

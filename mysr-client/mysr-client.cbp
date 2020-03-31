@@ -53,15 +53,15 @@
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />
 		</Unit>
-		<Unit filename="../../common-c-libs/include/mold.h">
+		<Unit filename="../../common-c-libs/clibs-mold.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/include/clibs-mold.h">
 			<Option virtualFolder="includes/" />
 		</Unit>
 		<Unit filename="../../common-c-libs/include/mold-actions/cast-text.h">
 			<Option virtualFolder="includes/" />
-		</Unit>
-		<Unit filename="../../common-c-libs/mold.c">
-			<Option compilerVar="CC" />
-			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="../../common-c-libs/mold-actions/cast-text.c">
 			<Option compilerVar="CC" />
