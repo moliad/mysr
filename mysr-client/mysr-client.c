@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mysr.h"
-#include "mold.h"
+#include "clibs-mold.h"
 
 #define VERBOSE
 
@@ -66,11 +66,12 @@ int main(){
 	}else{
 		printf("ERROR: unable to initialise a buffer of %i\n\n bytes", mysql_query_buffer_size );
 	}
-	mv = build( MOLD_WORD, "error" );
-	mv->next = make ( MOLD_BLOCK );
+	mv = mysr_prep_error("generic", "Error test");
+	//mv = build( MOLD_WORD, "error" );
+	//mv->next = make ( MOLD_BLOCK );
 	
 	mold_list(mv, buffer, bufsize, 0);
-	
+	//;
 	vprint(buffer);
 	
 	vout

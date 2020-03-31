@@ -25,14 +25,6 @@ debug?: false
 
 
 ;--------------------------
-;-     default-session:
-;
-; connect will set this each time it is called, thus the last connection is always the default session.
-;--------------------------
-default-session: none
-
-
-;--------------------------
 ;-     tracelog-path:
 ;
 ;--------------------------
@@ -68,21 +60,6 @@ dbname: 'blah
 ;--------------------------
 session: none
 
-;--------------------------
-;-     only-rebuild-db:
-;
-; in production, this is none.
-;
-; while developping, you can choose one or more DBs to rebuild.
-;--------------------------
-;only-rebuild-db: [
-;	contact-db
-;	product-db
-;]
-;only-rebuild-db: [client-domain-db] 
-;only-rebuild-db: none
-only-rebuild-db: [client-db contact-db domain-equiv-db sap-db products-db client-domain-db discount-db]
-
 ;-                                                                                                       .
 ;-----------------------------------------------------------------------------------------------------------
 ;
@@ -115,7 +92,7 @@ mysr: slim/open/expose 'mysr none [ connect  list-dbs sql: mysql query query!  e
 ;-----------------------------------------------------------------------------------------------------------
 vprint "testing mysr dll... extpecting result of 10"
 
-connect "localhost" "" "root" "root"
+connect "localhost" "" "root" "123456"
 ;data: list-dbs session 
 ;v?? data
 
@@ -153,56 +130,8 @@ bulk-lib/von
 ;]
 
 dbs: list-dbs
-;v?? dbs
+v?? dbs
 
-
-;trace-sql %mysr-trace.log
-
-;--------------------------
-;-     make-product-code()
-;--------------------------
-; purpose: Get a product code using mlfb-options
-;
-; inputs:   
-;
-; returns:  
-;
-; notes:    
-;
-; to do:    
-;
-; tests:    
-;--------------------------
-make-product-code: funcl [
-	mlfb		[string!]
-	options 	[string! none!]
-][
-	;vin "make-product-code()"
-	code: copy MLFB
-	;v?? options
-	if all [
-		string? options
-		empty? trim options
-	][
-		options: none
-	]
-	
-	if options [
-		;append code join "-" options
-		;--------------
-		; split the options into groups of 3 chars with separators
-		;--------------
-		;duplicate the row information!
-		;.row
-		alt-options: clear ""
-		parse/all options [
-			some [copy opt 3 skip  ( append alt-options "-" append alt-options opt  ) ]
-		]
-		append code alt-options
-	]
-	;vout
-	code
-]
 
 if find dbs to-string dbname [
 	query ["drop database " db] dbname
@@ -214,35 +143,27 @@ do-mysql [
 	CREATE TABLE 'product [
 		ProductCode 		120 primary
 		MLFB				20
-		Options				100
 		SAPMaterialCode
 		SpareNewStatus		5
-		ProductMilestone	20
-		RepairStatus		5
-		NetWeight			decimal!
-		WeightUnit			5
-		L1SparePartPrice	decimal!
-		L1RepairPrice		decimal!
-		L1ExchangePrice		decimal!
-		L2SparePartPrice	decimal!
-		L2RepairPrice		decimal!
-		L2ExchangePrice		decimal!
-		SparePartLeadTime	integer!
+		Price				decimal!
 		RepairLeadTime		integer!
 		ShortDescription	text!
 		PCK					10
 	]
 	
-	CREATE TABLE 'contact [
-		Email				100
-		Surname				40
-		FirstName			40
+	CREATE TABLE 'client [
+		ClientID			autokey!
 		CompanyNumber		100
-		Name1				120
-		Name2				120
-		PL					2
-		Grp2				30
-		CustomerGroup2		30
+		Name				30
+		PL					integer!  ; [1 | 2]
+		Discount			decimal!
+	]
+
+	CREATE TABLE 'contact [
+		ContactID			autokey!
+		Email				100 primary
+		name				40
+		CompanyNumber		100
 	]
 ]
 
@@ -250,283 +171,17 @@ bulk-lib/default-null: ""
 
 
 
-;-                                                                                                       .
-;-----------------------------------------------------------------------------------------------------------
-;
-;-     CLIENT-DB
-;
-;-----------------------------------------------------------------------------------------------------------
-;either all [
-;	any [
-;		not only-rebuild-db
-;		find only-rebuild-db 'client-db
-;	]
-;][
-	print "PROCESSING CLIENT DB"
-	client-db: csv-to-bulk/select  join dir %data/siemens-client-db.csv [Customer Name1 Name2 PL Grp2 CustomerGroup2]
-	rebuild-client-rule?: true
-	client-db: to-hash next client-db
-	;v?? CLIENT-DB
-	;ask "..."
-	print "PROCESSING CLIENT DB DONE"
-;]
-
-
-
-
-;-                                                                                                       .
-;-----------------------------------------------------------------------------------------------------------
-;
-;-     CONTACT-DB
-;
-;-----------------------------------------------------------------------------------------------------------
-;either all [
-;	any [
-;		not only-rebuild-db
-;		find only-rebuild-db 'contact-db
-;	]
-;][
-	vprint "PROCESSING CONTACT DB"	
-	contact-db: csv-to-bulk/utf8/select join dir %data/siemens-contact-db.csv  [ Email Surname FirstName CompanyNumber]
-	;==============
-	; generating ambiguous client 
-	pure-columns: exclude column-labels contact-db [Surname FirstName]
-	;probe contact-db-bulk
-	;probe pure-columns
-	;probe next contact-db-bulk
-	pure-contact-bulk: select-bulk/select contact-db pure-columns
-	column-count: bulk-columns pure-contact-bulk
-	record: next pure-contact-bulk
-	
-	;ask "YEEEEEEEES"
-	ambiguous-contacts: make hash![]
-	classify-blk: make hash![]
-	potential-blk: make hash![] 
-	repetetive-blk: make hash![]
-
-	forskip record column-count [
-		key: first record
-		;v?? key
-		unless blk: select classify-blk key [
-			repend classify-blk [ key blk: copy[]]
-			;if (length? blk ) > 1 [ repend potential-blk [ key blk: copy[]] ]
-		]
-		append blk copy/part next record column-count - 1
-		;if (length? blk ) > 1 [ repend potential-blk [key blk]]
-		
-		new-line/skip blk true column-count - 1
-	]
-	;print classify-blk
-
-	;ask "BEFORE FILTERING"
-
-	foreach [email blk] classify-blk [
-		clients: unique blk
-		either ( length? clients ) > 1  [
-			repend  ambiguous-contacts  [email clients]
-			;?? ambiguous-contacts
-		][
-			; clean up the list so its unique
-			clear blk
-			append blk clients
-		]
-	]
-	
-	;print "ambiguous-contacts"
-	;v?? ambiguous-contacts
-	new-line/skip ambiguous-contacts: to-block ambiguous-contacts true 2
-	;print classify-blk
-	;ask "ambiguous-contacts"
-	
-	;ask "Ambiguity Found"
-	
-	;----finishing generating the ambiguous-contacts 
-	;=============
-
-	rebuild-client-rule?: true
-
-
-	table: next contact-db
-	
-	email: Surname: FirstName: CompanyNumber: Name1: Name2: PL: Grp2: CustomerGroup2: none ;Grp2: CustomerGroup2: none
-	
-	;---
-	;add columns to contact-db
-	;---
-	delay: dt [add-column contact-db [ Name1 Name2 PL Grp2 CustomerGroup2 ]]
-	v?? delay
-	vprint "JOINING CLIENT-DB DATA TO CONTACT-DB"
-	until [
-		;vprint "^/======================================================="
-		set [Email Surname FirstName CompanyNumber   Name1 Name2 PL Grp2 CustomerGroup2] table
-		client: find client-db CompanyNumber
-		
-		either client [
-			set [CompanyNumber Name1 Name2 PL Grp2 CustomerGroup2] client
-		][
-			Name1: ""
-			Name2: ""
-			PL: "Unknown"
-			Grp2: ""
-			CustomerGroup2: ""
-			; <TODO>   remove comments... in production.
-		]
-		
-		next-row: change table reduce [ Email Surname FirstName CompanyNumber Name1 Name2 PL Grp2 CustomerGroup2] ; CHANGE returns block After its change, (after last column, so the first column of next row)
-		
-		table: next-row
-
-		tail? table
-	]
-
-	;new-line/skip next contact-db true 9
-	realign-bulk-rows contact-db
-	
-	columns: next next next contact-db/1
-	;v?? columns
-	;ask "..."
-	counter: 0
-	;voff
-	;mysr/voff
-	it: dt compose/only [
-		foreach (columns) next contact-db[ ;contact-db [
-			bind columns 'Email
-			;vprobe reduce columns
-			;ask "..."
-			insert-sql 'contact columns reduce columns
-			if 0 = modulo counter 100 [
-				vprint counter
-			]
-			counter: counter + 1
-			;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
-		]
-	]
-	
-	vprint "PROCESSING CONTACT DB DONE"
-;]
-
-
-;-                                                                                                       .
-;-----------------------------------------------------------------------------------------------------------
-;
-;-     DOMAIN-EQUIV-DB
-;
-;-----------------------------------------------------------------------------------------------------------
-;if all [
-;	any [
-;		not only-rebuild-db
-;		find only-rebuild-db 'domain-equiv-db
-;	]
-;][
-	vprint "PROCESSING DOMAIN-EQUIV DB"
-	domain-equiv-db: csv-to-bulk/utf8/select dir/data/siemens-domain-equiv-db.csv [Domain ClientID]
-	v?? domain-equiv-db
-	domain-equiv-db: to-hash copy next domain-equiv-db
-	
-	vprint "PROCESSING DOMAIN-EQUIV DB DONE"
-;]
-
-;-                                                                                                       .
-;-----------------------------------------------------------------------------------------------------------
-;
-;-     SAP-DB
-;
-;-----------------------------------------------------------------------------------------------------------
-print "PROCESSING SAP DB"
-sap-db: csv-to-bulk/select/every join dir %data/siemens-sap-products-db.csv [ProductCode Material] [ProductCode: make-product-code ProductNumberPrint Options] 
-sap-db: to-hash next sap-db
-
-print "PROCESSING SAP DB DONE"
-;vprint ["LOADING SAP DB DONE (" delay ")" ]
-
-;-                                                                                                       .
-;-----------------------------------------------------------------------------------------------------------
-;
-;-     PRODUCT-DB
-;
-;-----------------------------------------------------------------------------------------------------------
-vprint "PROCESSING PRODUCT DB"
-product-filter-file: join dir %data/siemens-product-filter.txt
-filter-data: none
-if exists? product-filter-file [
-	filter-data: read/lines 
-	filter-data: to-hash filter-data
-]
-;[NetWeight: decimal! L1SparePartPrice: decimal! L1RepairPrice: decimal! L1ExchangePrice: decimal! L2SparePartPrice: decimal! L2RepairPrice: decimal! L2ExchangePrice: decimal! SparePartLeadTime: integer! RepairLeadTime: integer!]
-products-db: csv-to-bulk/select/every/where/types dir/data/siemens-product-db-extractor3.csv [ProductCode MLFB Options SAPMaterialCode SpareNewStatus ProductMilestone RepairStatus NetWeight WeightUnit L1SparePartPrice L1RepairPrice L1ExchangePrice L2SparePartPrice L2RepairPrice L2ExchangePrice SparePartLeadTime RepairLeadTime ShortDescription PCK][
-	ProductCode: make-product-code MLFB options
-	SAPMaterialCode: select sap-db ProductCode
-	;v?? ProductCode
-	opt: none
-	;v?? L2_SP_Price
-	if [
-		string? options
-		empty? trim options
-	][
-		options: none
-	]
-][
-	;where statement
-	any [
-		not filter-data
-		find filter-data mlfb
-	]
-][
-	;types statement
-	NetWeight: decimal! 
-	L1SparePartPrice: decimal! 
-	L1RepairPrice: decimal! 
-	L1ExchangePrice: decimal! 
-	L2SparePartPrice: decimal! 
-	L2RepairPrice: decimal! 
-	L2ExchangePrice: decimal! 
-	SparePartLeadTime: integer! 
-	RepairLeadTime: integer!
-]
-sort-bulk/reverse/using products-db 'ProductCode
-
-vprint "PROCESSING PRODUCT DB DONE"
-
-;v?? products-db
-
-;dataset: []
-;
-;repeat i 1000 [
-;	repend dataset [ to-string i rejoin [to-string i to-string i to-string i ] rejoin [to-string i "-options"] i ]
-;]
-
-
-columns: products-db/1/4
-;v?? columns
-;ask "..."
-;v?? products-db
-;ask "..."
-counter: 0
-;voff
-;mysr/voff
-it: dt compose/only [
-	foreach (columns) next products-db[ ;products-db [
-		bind columns 'ProductCode
-		;vprobe reduce columns
-		;ask "..."
-		insert-sql 'product columns reduce columns
-		if 0 = modulo counter 100 [
-			vprint counter
-		]
-		counter: counter + 1
-		;insert-sql 'product ["aaa" "111" "aaa-111" 1 "bbb" "222" "bbb-222" 10 ]
-	]
-]
-;mysr/von
-;von
-
 ;vprint ["insert time: " it]
 ;v?? it
+
+vprint "========================="
 
 
 t: dt [
 	result: sql "select * FROM product ;"
 ]
+
+v?? result
 ;vprint ["select time: " t]
 ;v?? result
 
@@ -536,5 +191,5 @@ t: dt [
 ;escaped: escape-sql {aaa";drop database}
 ;v?? escaped
 
-;ask "..." 
+ask "..." 
 

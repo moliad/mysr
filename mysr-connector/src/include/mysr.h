@@ -18,7 +18,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #include "mysql.h"          // all mysql declarations.
-//#include "mold.h"
+#include "clibs-mold.h"
 #include "mysr-structs.h"   // all mysql declarations.
 #include "dll-export.h"     // DLL import/export switch handling
 
@@ -59,6 +59,46 @@ DLL_EXPORT int mysr_tracelog (char* filepath);
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
+//- REBOL RETURN DATA MANAGEMENT
+//
+//-----------------------------------------------------------------------------------------------------------
+
+
+//--------------------------
+//-     mysr_prep_error()
+//--------------------------
+DLL_EXPORT MoldValue *mysr_prep_error(const char *type, const char *message );
+
+
+//--------------------------
+//-     mysr_rebol_result()
+//--------------------------
+DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result);
+
+
+//--------------------------
+//-     mysr_free_data()
+//--------------------------
+DLL_EXPORT void mysr_free_data(void *data);
+
+
+//--------------------------
+//-     mysr_mold_row_count()
+//--------------------------
+DLL_EXPORT char *mysr_mold_row_count(int count);
+
+//--------------------------
+//-     mysr_mold_error()
+//--------------------------
+// purpose:  converts a string to a rebol error
+//--------------------------
+DLL_EXPORT char *mysr_mold_error(const char *error);
+
+
+
+//-                                                                                                       .
+//-----------------------------------------------------------------------------------------------------------
+//
 //- DB QUERY FUNCTIONS
 //
 //-----------------------------------------------------------------------------------------------------------
@@ -87,7 +127,7 @@ void mysr_probe_result(MYSQL_RES *result);
 //--------------------------
 // purpose:  list all the databases on the server
 //--------------------------
-char *mysr_list_dbs(MysrSession *session, char *filter);
+DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter);
 
 
 //--------------------------
@@ -96,24 +136,4 @@ char *mysr_list_dbs(MysrSession *session, char *filter);
 // purpose:  send query to current connection.
 //--------------------------
 DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string);
-
-
-//-                                                                                                       .
-//-----------------------------------------------------------------------------------------------------------
-//
-//- REBOL RETURN DATA MANAGEMENT
-//
-//-----------------------------------------------------------------------------------------------------------
-
-//--------------------------
-//-     mysr_rebol_result()
-//--------------------------
-DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result);
-
-
-//--------------------------
-//-     mysr_free_data()
-//--------------------------
-DLL_EXPORT void mysr_free_data(void *data);
-
 
