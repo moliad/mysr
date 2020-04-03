@@ -21,14 +21,12 @@
 #include "binary_log_types.h" // from mysql
 
 
-
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
 //- DLL GLOBALS
 //
 //-----------------------------------------------------------------------------------------------------------
-
 
 //--------------------------
 //-     resultbuffer:
@@ -63,7 +61,6 @@ int *column_types = 0;
 int column_types_array_size = 256;
 
 
-
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
@@ -90,7 +87,6 @@ DLL_EXPORT int test_dll (char *text, int val){
 	for(i = 0; text[i] != 0; i++ ){}
 	return i + val;
 }
-
 
 
 //--------------------------
@@ -245,7 +241,6 @@ DLL_EXPORT int mysr_init(int buffersize){
 // tests:
 //--------------------------
 DLL_EXPORT int mysr_tracelog (char* filepath){
-
 	vlogpath = filepath;
 	vlogreset;
 	vlogon;
@@ -256,6 +251,187 @@ DLL_EXPORT int mysr_tracelog (char* filepath){
 }
 
 
+
+//-                                                                                                       .
+//-----------------------------------------------------------------------------------------------------------
+//
+//- ACCESSORY ROUTINES
+//
+//-----------------------------------------------------------------------------------------------------------
+
+//--------------------------
+//-     mold_mysql_type()
+//--------------------------
+// purpose:  returns the string name of an sql type for various error reports and messages.
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+const char *mold_mysql_type(int type){
+	char *rval = NULL;
+	vin("mold_mysql_type()");
+	switch(type){
+		//---
+		// floating point
+		case MYSQL_TYPE_FLOAT:
+			rval = "MYSQL_TYPE_FLOAT" ;
+			break;
+			
+		case MYSQL_TYPE_DOUBLE:
+			rval = "MYSQL_TYPE_DOUBLE" ;
+			break;
+			
+		case MYSQL_TYPE_NEWDECIMAL:
+			rval = "MYSQL_TYPE_NEWDECIMAL" ;
+			break;
+			
+		case MYSQL_TYPE_DECIMAL:
+			rval = "MYSQL_TYPE_DECIMAL" ;
+			break;
+
+		//---
+		// integers
+		case MYSQL_TYPE_TINY:
+			rval = "MYSQL_TYPE_TINY" ;
+			break;
+			
+		case MYSQL_TYPE_SHORT:
+			rval = "MYSQL_TYPE_SHORT" ;
+			break;
+			
+		case MYSQL_TYPE_LONG:
+			rval = "MYSQL_TYPE_LONG" ;
+			break;
+			
+		case MYSQL_TYPE_INT24:
+			rval = "MYSQL_TYPE_INT24" ;
+			break;
+
+		//---
+		// URL (we store the whole 64bit value as a url, using the scheme as the type)
+		//
+		// ex:  longlong:2137823465834587456
+		case MYSQL_TYPE_LONGLONG:
+			rval = "MYSQL_TYPE_LONGLONG" ;
+			break;
+
+		//---
+		// boolean
+		case MYSQL_TYPE_NULL:
+			rval = "MYSQL_TYPE_NULL" ;
+			break;
+			
+		//---
+		// dates
+		case MYSQL_TYPE_DATE:
+			rval = "MYSQL_TYPE_DATE" ;
+			break;
+			
+		case MYSQL_TYPE_DATETIME:
+			rval = "MYSQL_TYPE_DATETIME" ;
+			break;
+			
+		case MYSQL_TYPE_NEWDATE:
+			rval = "MYSQL_TYPE_NEWDATE" ;
+			break;
+			
+		case MYSQL_TYPE_DATETIME2:
+			rval = "MYSQL_TYPE_DATETIME2" ;
+			break;
+
+		case MYSQL_TYPE_YEAR:		
+			rval = "MYSQL_TYPE_YEAR" ;
+			break;
+			
+		case MYSQL_TYPE_TIMESTAMP:  
+			rval = "MYSQL_TYPE_TIMESTAMP" ;
+			break;
+			
+		case MYSQL_TYPE_TIMESTAMP2: 
+			rval = "MYSQL_TYPE_TIMESTAMP2" ;
+			break;
+			
+		case MYSQL_TYPE_TIME:
+			rval = "MYSQL_TYPE_TIME" ;
+			break;
+			
+		case MYSQL_TYPE_TIME2:
+			rval = "MYSQL_TYPE_TIME2" ;
+			break;
+			
+		//---
+		// string
+		case MYSQL_TYPE_VARCHAR:
+			rval = "MYSQL_TYPE_VARCHAR" ;
+			break;
+			
+		case MYSQL_TYPE_JSON:
+			rval = "MYSQL_TYPE_JSON" ;
+			break;
+			
+		case MYSQL_TYPE_VAR_STRING:
+			rval = "MYSQL_TYPE_VAR_STRING" ;
+			break;
+			
+		case MYSQL_TYPE_STRING:
+			rval = "MYSQL_TYPE_STRING" ;
+			break;
+			
+		//---
+		// charset
+		case MYSQL_TYPE_BIT:
+			rval = "MYSQL_TYPE_BIT" ;
+			break;
+			
+		//---
+		// issue
+		case MYSQL_TYPE_ENUM:
+			rval = "MYSQL_TYPE_ENUM" ;
+			break;
+			
+		//---
+		// binary
+		case MYSQL_TYPE_TINY_BLOB:
+			rval = "MYSQL_TYPE_TINY_BLOB" ;
+			break;
+			
+		case MYSQL_TYPE_MEDIUM_BLOB:
+			rval = "MYSQL_TYPE_MEDIUM_BLOB" ;
+			break;
+			
+		case MYSQL_TYPE_LONG_BLOB:
+			rval = "MYSQL_TYPE_LONG_BLOB" ;
+			break;
+			
+		case MYSQL_TYPE_BLOB:
+			rval = "MYSQL_TYPE_BLOB" ;
+			break;
+			
+		//---
+		// block
+		case MYSQL_TYPE_SET:         
+			rval = "MYSQL_TYPE_SET" ;
+			break;
+			
+		case MYSQL_TYPE_GEOMETRY:
+			rval = "MYSQL_TYPE_GEOMETRY" ;
+			break;
+			
+		default:
+			rval = "UNKNOWN_TYPE";
+			break;	
+	}
+	vout;
+	
+	return rval;
+}
 
 
 
@@ -454,9 +630,17 @@ MoldValue *mysr_prep_sql_value(char *data, int column_type){
 		vnum(type);
 		if (type != MOLD_TEXT){ // do nothing if output is a string.
 			switch (type) {
+				case MOLD_DECIMAL:
+				case MOLD_INT:
 				case MOLD_LITERAL:
 					vprint("will be using MOLD_LITTERAL");
-					// this type requires a specific conversion based on source type.
+					//-----
+					// this type can use the source text directly for its output...
+					// no point in converting to-from. use the given text directly.
+					// text to literal is EXTREMELY FAST...
+					// its practically a no-op.
+					//-----
+					mv = cast(mv, MOLD_LITERAL, FALSE);
 					break;
 
 				// semi-types can only be used for cast purposes (they become MOLD_LITERAL values pre
@@ -598,13 +782,29 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 			// fetch the row data
 			vprint ("FETCHING DATA")
 			while ((row = mysql_fetch_row(result))) {
+				int breakfetch = FALSE;
 				for(i = 0; i < field_cnt; i++) {
 					mv = mysr_prep_sql_value(row[i], column_types[i]);  // if row[i] is NULL, we receive a MOLD_NONE value
-					append(db, mv);
-					printf("%s , " , (row[i] ? row[i] : "NULL"));
+					vprint("%s , " , (row[i] ? row[i] : "NULL"));
+					if (mv == NULL){
+						vprint("mv is NULL!");
+						dismantle(resultmv);
+						vprint("INPUT TYPE: %s", mold_mysql_type(column_types[i]));
+						resultmv = mysr_prep_error("generic", "problem casting mysql value to mysr");
+						breakfetch = TRUE;
+						break;
+					}else{
+						append(db, mv);
+					}
+				}
+				if (breakfetch){
+					vprint("BREAKFETCH DETECTED!");
+					//----
+					// an error occured, stop loop right away.
+					break;
 				}
 				mv->newline = TRUE;
-				printf("\n---------------------\n");
+				vprint("\n---------------------\n");
 			}
 		}
 	}
@@ -646,6 +846,118 @@ DLL_EXPORT void mysr_free_data(void *data){
 //- DB QUERY FUNCTIONS
 //
 //-----------------------------------------------------------------------------------------------------------
+
+//--------------------------
+//-     mysr_stmt_create()
+//--------------------------
+// purpose:  
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    - params must match the actual number of params within the query.
+//           - we will want to add some form of error reporting
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT MYSQL_STMT *mysr_stmt_create(
+	MysrSession *session, 
+	char *query, 
+	int querylen, 
+	int count
+){
+	MYSQL_STMT    *stmt=NULL;
+
+	vin("mysr_stmt_create()");
+	
+	stmt = mysql_stmt_init(session->connection);
+	
+	if (stmt){
+		if (mysql_stmt_prepare(stmt, query, querylen)){
+			// error, quit
+			mysql_stmt_close(stmt);
+			stmt = NULL;
+		}
+	}
+	if (stmt){
+		int param_count = 0;
+		param_count= mysql_stmt_param_count(stmt);
+		if (count==param_count){
+			// ready to get params setup
+			//return stmt;
+			
+		}else{
+			// error wrong number of params.
+			mysql_stmt_close(stmt);
+			stmt=NULL;
+			
+		}
+	}
+	vout;
+	
+	return stmt;
+}
+
+
+
+
+
+//--------------------------
+//-     mysr_build_params()
+//--------------------------
+// purpose:  allocates an array of params.
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT MYSQL_BIND *mysr_build_params(int count){
+	MYSQL_BIND *params = NULL;
+	vin("mysr_build_params()");
+	params = calloc(count, sizeof(MYSQL_BIND));
+	vout;
+	return params;
+}
+
+
+//--------------------------
+//-     mysr_set_param()
+//--------------------------
+// purpose:  
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+void mysr_set_param(
+	MYSQL_BIND *params, 
+	int idx,
+	enum enum_field_types type
+){
+	vin("mysr_set_param()");
+	
+	vout;
+}
+
+
+
+
+
 
 
 //--------------------------

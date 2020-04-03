@@ -617,6 +617,11 @@ slim/register [
 				size: take size
 				append str rejoin [ "(" size ")" ]
 			]
+			if spec: find/last options pair! [
+				vprint "found spec!"
+				spec: take spec
+				append str rejoin [ "(" spec/x "," spec/y ")" ]
+			]
 			parse options [
 				any [
 					'auto-increment (
@@ -715,6 +720,10 @@ slim/register [
 				; this would be useful when we don't do arithmetic and require the data to remain unchanged textually.
 				; 
 				sql-type: "DECIMAL"
+				unless find options pair! [
+					append options 10x4
+				]
+					
 			]
 			
 			json! [
@@ -1226,6 +1235,10 @@ slim/register [
 						v?? .size 
 						append .current-options .size 
 					)
+					| set .spec pair! (
+						v?? .spec 
+						append .current-options .spec 
+					)
 				]
 				(
 					append qry reduce [ "^-" .name .sql-type (sql-options .current-options)]
@@ -1361,8 +1374,6 @@ slim/register [
 		]
 		vout
 	]
-	
-	
 
 	;-                                                                                                       .
 	;-     END OF LIB
