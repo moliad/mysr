@@ -26,6 +26,16 @@ column-set-count: 1
 cellsize: 5
 
 ;--------------------------
+;- null-percentage:
+;
+; how many null values to insert in the result grid
+;     - must be an integer
+;     - 0 disables nulls
+;--------------------------
+null-percentage: 10
+
+
+;--------------------------
 ;-     rows:
 ;
 ; how many total rows to setup
@@ -175,8 +185,14 @@ cell-count: col-count * rows
 ;--------------------------
 grid: []
 repeat i rows [
-	foreach column col-types [
-		switch column [
+	foreach type col-types [
+		all [
+			null-percentage > 0
+			(random 100) <= null-percentage
+			type: 'none!
+		]
+	
+		switch type [
 			integer! [
 				append grid i
 			]
@@ -185,6 +201,9 @@ repeat i rows [
 			]
 			decimal! [
 				append grid  (random 1000'000'000) * 0.0001 
+			]
+			none! [
+				append grid none
 			]
 		]
 	]

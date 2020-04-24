@@ -141,7 +141,7 @@ slim/register [
 		mysr.list-dbs  mysr.query  mysr.escape-string-quote
 		mysr.create-statement  mysr.release-statement  mysr.new-row  
 		mysr.bind-string-value  mysr.bind-integer-value  mysr.bind-decimal-value
-		mysr.set-null-value  mysr.set-string  mysr.set-integer mysr.set-decimal
+		mysr.set-null  mysr.set-string  mysr.set-integer mysr.set-decimal
 		mysr.bind-statement  mysr.do-statement
 	]
 
@@ -1432,6 +1432,9 @@ slim/register [
 						;v?? type
 						;v?? item
 						;v?? i
+						if none? item [
+							type: 'none!
+						]
 						switch type [
 							string! [
 								;vprint "inserting string"
@@ -1447,6 +1450,9 @@ slim/register [
 							integer! [
 								;vprint "inserting integer"
 								mysr.set-integer statement to-integer item
+							]
+							none! [
+								mysr.set-null statement
 							]
 						]
 					]

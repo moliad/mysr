@@ -149,7 +149,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;BUILD_DLL;_DEBUG;MYSRCONNECTOR_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>S:\dev\projects\git\mysr\mysql\include;S:\dev\projects\git\common-c-libs\include;S:\dev\projects\git\mysr\mysr-connector\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\mysql\include;$(ProjectDir)..\..\common-c-libs\include;$(ProjectDir)..\mysr-connector\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <SupportJustMyCode>false</SupportJustMyCode>
       <TreatWarningAsError>true</TreatWarningAsError>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
@@ -157,7 +157,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>S:\dev\projects\git\mysr\mysql\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\mysql\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libmysql.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
       <MapExports>false</MapExports>
@@ -195,7 +195,7 @@ copy /y $(TargetDir)mysrConnector.pdb  $(ProjectDir)..\mysr-libs\</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;BUILD_DLL;NDEBUG;MYSRCONNECTOR_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>S:\dev\projects\git\mysr\mysql\include;S:\dev\projects\git\common-c-libs\include;S:\dev\projects\git\mysr\mysr-connector\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\mysql\include;$(ProjectDir)..\..\common-c-libs\include;$(ProjectDir)..\mysr-connector\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <Link>
@@ -203,7 +203,7 @@ copy /y $(TargetDir)mysrConnector.pdb  $(ProjectDir)..\mysr-libs\</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>S:\dev\projects\git\mysr\mysql\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\mysql\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libmysql.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -224,7 +224,7 @@ copy /y $(TargetDir)mysrConnector.pdb  $(ProjectDir)..\mysr-libs\</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>VPRINT_OFF;_CRT_SECURE_NO_WARNINGS;WIN32;BUILD_DLL;NDEBUG;MYSRCONNECTOR_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>S:\dev\projects\git\mysr\mysql\include;S:\dev\projects\git\common-c-libs\include;S:\dev\projects\git\mysr\mysr-connector\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\mysql\include;$(ProjectDir)..\..\common-c-libs\include;$(ProjectDir)..\mysr-connector\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <Link>
@@ -232,7 +232,7 @@ copy /y $(TargetDir)mysrConnector.pdb  $(ProjectDir)..\mysr-libs\</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>S:\dev\projects\git\mysr\mysql\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\mysql\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libmysql.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>

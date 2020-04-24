@@ -301,10 +301,10 @@ slim/register [
 	
 	
 	;--------------------------
-	;-     mysr.set-null-value()
+	;-     mysr.set-null()
 	;
 	;--------------------------
-	mysr.set-null-value: make routine! [
+	mysr.set-null: make routine! [
 		statement	[integer!] "A pointer to the internal statement object."
 		return: 	[integer!] "error code"
 	] mysr.dll "mysr_stmt_set_null_value"
