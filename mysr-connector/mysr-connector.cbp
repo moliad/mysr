@@ -20,6 +20,9 @@
 					<Add option="-g" />
 					<Add option="-DBUILD_DLL" />
 				</Compiler>
+				<Linker>
+					<Add option="-m32" />
+				</Linker>
 				<ExtraCommands>
 					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysr-libs" />
 					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr-debug.a  $(WORKSPACE_DIR)\mysr-libs" />
@@ -47,6 +50,37 @@
 					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr.a  $(WORKSPACE_DIR)\mysql\lib" />
 				</ExtraCommands>
 			</Target>
+			<Target title="ProdRelease">
+				<Option output="bin/Release/mysr/mysr" prefix_auto="0" extension_auto="1" />
+				<Option object_output="obj/ProdRelease/" />
+				<Option type="3" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Option createStaticLib="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-Wall" />
+					<Add option="-m32" />
+					<Add option="-DBUILD_DLL" />
+					<Add option="-DVPRINT_OFF" />
+				</Compiler>
+				<Linker>
+					<Add option="-m32" />
+				</Linker>
+				<ExtraCommands>
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysr-libs" />
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr.a  $(WORKSPACE_DIR)\mysr-libs" />
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_FILE)  $(WORKSPACE_DIR)\mysql\lib" />
+					<Add after="cmd /c copy /y $(TARGET_OUTPUT_DIR)mysr.a  $(WORKSPACE_DIR)\mysql\lib" />
+				</ExtraCommands>
+			</Target>
+			<Target title="Rebol Client Test">
+				<Option output="bin/RebolClientTest/mysr" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="bin/RebolClientTest/" />
+				<Option object_output="obj/RebolClientTest/" />
+				<Option type="1" />
+				<Option compiler="null" />
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-DBUILD_DLL" />
@@ -67,13 +101,27 @@
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />
 		</Unit>
+		<Unit filename="../../common-c-libs/clibs-errors.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/clibs-mold.c">
+			<Option compilerVar="CC" />
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="../../common-c-libs/include/clibs-cast.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/include/clibs-enums.h">
+			<Option virtualFolder="includes/" />
+		</Unit>
+		<Unit filename="../../common-c-libs/include/clibs-errors.h">
 			<Option virtualFolder="includes/" />
 		</Unit>
 		<Unit filename="../../common-c-libs/include/clibs-mold.h">
 			<Option virtualFolder="includes/" />
 		</Unit>
-		<Unit filename="../../common-c-libs/include/clibs-enums.h">
+		<Unit filename="../../common-c-libs/include/mold-actions/cast-text.h">
 			<Option virtualFolder="includes/" />
 		</Unit>
 		<Unit filename="../../common-c-libs/include/source-macros.h">
@@ -82,25 +130,11 @@
 		<Unit filename="../../common-c-libs/include/vprint.h">
 			<Option virtualFolder="includes/" />
 		</Unit>
-		<Unit filename="../../common-c-libs/include/clibs-errors.h">
-			<Option virtualFolder="includes/" />
-		</Unit>
-		<Unit filename="../../common-c-libs/include/mold-actions/cast-text.h">
-			<Option virtualFolder="includes/" />
-		</Unit>
-		<Unit filename="../../common-c-libs/clibs-mold.c">
-			<Option compilerVar="CC" />
-			<Option virtualFolder="src/" />
-		</Unit>
 		<Unit filename="../../common-c-libs/mold-actions/cast-text.c">
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="../../common-c-libs/vprint.c">
-			<Option compilerVar="CC" />
-			<Option virtualFolder="src/" />
-		</Unit>
-		<Unit filename="../../common-c-libs/clibs-errors.c">
 			<Option compilerVar="CC" />
 			<Option virtualFolder="src/" />
 		</Unit>

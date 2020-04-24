@@ -1,6 +1,6 @@
 REBOL [
 	; -- Core Header attributes --
-	title: "Generic block! handling functions"
+	title: "MySQL Rebol connector"
 	file: %mysr.r
 	version: 0.6.0
 	date: 2020-02-20
@@ -12,7 +12,7 @@ REBOL [
 
 	; -- slim - Library Manager --
 	slim-name: 'mysr
-	slim-version: 1.0.1
+	slim-version: 1.4.0
 	slim-prefix: none
 
 	; -- Licensing details  --
@@ -51,12 +51,11 @@ REBOL [
 ; unit testing setup
 ;--------------------------------------
 ;
-; test-enter-slim 'utils-blocks
+; test-enter-slim 'mysr
 ;
 ;--------------------------------------
 
 slim/register [
-	setcurrentdir to-local-file what-dir
 
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------
@@ -137,37 +136,15 @@ slim/register [
 	;- LIBS
 	;
 	;-----------------------------------------------------------------------------------------------------------
-	;-----
-	; here we must play with the OS current directory for mysr.dll to find libmysql.dll in the same folder.
-	;
-	; the problem is that Rebol's current-dir function doesn't change the system current dir... just 
-	; the default used by Rebol mezz code  :-(
-	;-----
-	k32.dll: load/library %kernel32.dll
-	setcurrentdir: make routine! [
-		path [string!]
-		return: [integer!]
-	] k32.dll "SetCurrentDirectoryA"
-	getcurrentdir: make routine! [
-		len [integer!] ; size of memory buffer
-		path [string!] ; memory buffer to use
-		return: [integer!]
-	] k32.dll "GetCurrentDirectoryA"
-	dlldirpath: to-local-file clean-path dlldir
+	slim/open/expose 'mysr-routines none [ 
+		mysr.test  mysr.init  mysr.connect  mysr.tracelog
+		mysr.list-dbs  mysr.query  mysr.escape-string-quote
+		mysr.create-statement  mysr.release-statement  mysr.new-row  
+		mysr.bind-string-value  mysr.bind-integer-value  mysr.bind-decimal-value
+		mysr.set-null-value  mysr.set-string  mysr.set-integer mysr.set-decimal
+		mysr.bind-statement  mysr.do-statement
+	]
 
-	;---
-	; remember path of app wd so we can restore it.
-	buflen: 300
-	buffer: head insert/dup "" "^@" buflen
-	pathlen: getcurrentdir buflen buffer
-	app-wd: copy/part buffer pathlen
-	;?? app-wd
-	
-	vprint "loading mysql library..."
-	;print [ dllpath " : "  exists? dllpath ]
-	setcurrentdir dlldirpath
-	mysr.dll: load/library  dllpath
-	setcurrentdir app-wd
 
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------
@@ -216,109 +193,7 @@ slim/register [
 ;		]
 ;	]
 	
-	;-                                                                                                       .
-	;-----------------------------------------------------------------------------------------------------------
-	;
-	;- ROUTINES
-	;
-	;-----------------------------------------------------------------------------------------------------------
-
-	;--------------------------
-	;-     mysr.test()
-	;
-	;--------------------------
-	mysr.test: make routine! [
-		text   [string!]
-		val    [integer!]
-		return: [integer!]
-	] mysr.dll "test_dll"
-
-	;--------------------------
-	;-     mysr.init()
-	;
-	;--------------------------
-	mysr.init: make routine! [
-		buffersize [integer!]
-		return: [integer!]
-	] mysr.dll "mysr_init"
-
-
-	;--------------------------
-	;-     mysr.connect()
-	;
-	;--------------------------
-	mysr.connect: make routine! [
-		host [string!]
-		db [string!]
-		user [string!]
-		pwd [string!]
-		return: [integer!] ; pointer to a mysr session object.
-	] mysr.dll "mysr_connect"
-
-
-	;--------------------------
-	;-     mysr.tracelog()
-	;
-	;--------------------------
-	mysr.tracelog: make routine! [
-		path [string!]
-		return: [integer!]
-	] mysr.dll "mysr_tracelog"
-
-
-	;--------------------------
-	;-     mysr.list-dbs()
-	;
-	;--------------------------
-	mysr.list-dbs: make routine! [
-		session [integer!]
-		filter  [string!]
-		return: [string!]
-	] mysr.dll "mysr_list_dbs"
-
-
-	;--------------------------
-	;-     mysr.query()
-	;
-	;--------------------------
-	mysr.query: make routine! [
-		session [integer!]
-		query [string!]
-		return: [string!]
-	] mysr.dll "mysr_query"
 	
-	
-	
-	;--------------------------
-	;-     mysr.escape-string-quote()
-	;
-	; doc url : https://dev.mysql.com/doc/refman/5.7/en/mysql-real-escape-string-quote.html
-	;--------------------------
-	mysr.escape-string-quote: make routine! [
-		session   [integer!]  ; mysr connection session.
-		src-text  [string!]   ; text to quote
-		dest-text [string!]   ; result is copied here ( buffer must be ((src-len * 2) +1 bytes long )
-		src-len   [integer!]  ; length of text
-		context   [char!]     ; string wrapping character to ignore within given text.  ("), ('), or (`) 
-		return:   [integer!]  ; length of result string.
-	] mysr.dll "mysr_quote"
-		
-;		to-buffer [string!]    ; destination buffer ... NOTE: the length of this buffer must be:  
-;		                       ; ((from-length * 2) +1 bytes long )  
-;		                       ; In the worst case, each character may need to be encoded as using 
-;		                       ; two bytes, and there must be room for the terminating null byte.
-;		from-buffer [string!]  ; source buffer (string to fix) 
-;		from-length [integer!] ; length of source text (excluding null termination) 
-;		quote-context [char!]  ; within what string context is the text to be replaced within the query...
-;		                       ;    ex:  { "this" }  vs { 'this' }  
-;		                       ; in mysr we should only support the " string quote context.
-;		
-;		return: [integer!]     ; length of the to-buffer without null termination.
-	
-
-
-
-
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------
 	;
@@ -671,7 +546,7 @@ slim/register [
 		type [word!] ; use this pseudo-type
 		options [block!] ; also set these options!
 	][
-		vin "sql-type()"
+		;vin "sql-type()"
 		
 		sql-type: none
 		
@@ -732,7 +607,7 @@ slim/register [
 			]
 		]
 
-		vout
+		;vout
 		sql-type
 	]
 
@@ -902,7 +777,7 @@ slim/register [
 		;0 / 0
 			word: none
 			result: none
-			v?? query
+			;v?? query
 			;v?? values
 			if any [
 				string? values
@@ -1006,7 +881,7 @@ slim/register [
 			unless #";" = last query-str [
 				append query-str ";"
 			]
-			;v?? query-str
+			v?? query-str
 			
 			either check [
 				; user just wants a trace of what the query would be in final SQL
@@ -1081,6 +956,54 @@ slim/register [
 				make error! [mysql null]
 			]
 		]
+		vout
+		result
+	]
+
+
+	;-                                                                                                       .
+	;-----------------------------------------------------------------------------------------------------------
+	;
+	;- TRANSACTION MANAGEMENT
+	;
+	;-----------------------------------------------------------------------------------------------------------
+	;--------------------------
+	;-     start()
+	;--------------------------
+	; purpose:  starts a new transaction
+	;--------------------------
+	start: funcl [
+	][
+		vin "start()"
+		result: sql "START TRANSACTION;"
+		vout
+		result
+	]
+	
+	
+	;--------------------------
+	;-     commit()
+	;--------------------------
+	; purpose:  Commit current transaction;
+	;--------------------------
+	commit: funcl [
+	][
+		vin "commit()"
+		result: sql "COMMIT;"
+		vout
+		result
+	]
+	
+	
+	;--------------------------
+	;-     rollback()
+	;--------------------------
+	; purpose:  rollback current transaction
+	;--------------------------
+	rollback: funcl [
+	][
+		vin "rollback()"
+		result: sql "ROLLBACK;"
 		vout
 		result
 	]
@@ -1287,59 +1210,290 @@ slim/register [
 	;
 	; tests:    
 	;--------------------------
+;	insert-sql: funcl [
+;		table [word!]
+;		columns [block!]
+;		data [block!]
+;	][
+;		;vin "insert-sql()"
+;		
+;		;v?? columns
+;		;v?? data
+;		;ask "..."
+;		
+;		qry: clear []
+;		qry-values: clear []
+;		
+;		data: copy data
+;		word-name: 'w
+;		counter: 1
+;		
+;		qry: clear []
+;		append qry reduce [ "INSERT INTO" to-string table "(" ]
+;		
+;		foreach word columns [
+;			append qry to-lit-word word
+;			append qry ","
+;		]
+;		remove back tail qry 
+;		append qry ") VALUES "
+;		
+;		len: length? columns
+;		
+;		until [
+;			set: take/part data len
+;			qryset: copy ["("]
+;			foreach item set [
+;				append qryset to-word rejoin [word-name counter]
+;				append qry-values item
+;				append qryset "," 
+;				++ counter
+;			]
+;			remove back tail  qryset
+;			append qryset ")"
+;			append qry qryset
+;			append qry ","
+;		
+;			empty? data 
+;		]
+;		take/last qry
+;		
+;		;v?? qry
+;		;v?? qry-values
+;		query qry qry-values
+;		
+;		;vout
+;	]
+	
+	
+
+	;--------------------------
+	;-     insert-sql()
+	;--------------------------
+	; purpose:  use prepared statements to insert data. supports string! integer! and decimal!
+	;
+	; inputs:   
+	;
+	; returns:  columns affected.
+	;
+	; notes:    - builds its own transaction
+	;           -  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
+	;--------------------------
 	insert-sql: funcl [
-		table [word!]
-		columns [block!]
-		data [block!]
+		table	[word!]		"Table to insert into.  must have a current db, connection must have permissions as usual."
+		columns	[block!]	"Columns to use on insert, default values used as normal for unspecified columns."
+		rows	[block!]	"Data to store, types MUST match data"
+		/using session [integer!]	"insert into an alternate session, must still be connected and have permissions for this DB."
+		/typed types [block!]   "a list of datatypes, if types are not given, we will attempt to insert everything as strings."
+		/atomic "Do not run inside of a transaction (it may already be within one)"
+		/cluster records "how many records to insert for each call to sql. MUST be more than 0."
 	][
-		;vin "insert-sql()"
-		
-		;v?? columns
-		;v?? data
-		;ask "..."
-		
-		qry: clear []
-		qry-values: clear []
-		
-		data: copy data
-		word-name: 'w
-		counter: 1
-		
-		append qry reduce [ "INSERT INTO" to-string table "(" ]
-		
-		foreach word columns [
-			append qry to-lit-word word
-			append qry ","
+		vin "insert-sql()"
+		success: true
+		col-count: length? columns
+		session: any [session default-session]
+		records: any [records 1]
+		cols: clear ""
+		vals: clear ""
+
+		;-----------
+		; make sure given rows are an exact multiple of columns.
+		;-----------
+		if 0 <> modulo length? rows col-count [
+			vprint ["Given row data is not an appropriate count of " col-count " columns"]
+			vout
+			false
 		]
-		remove back tail qry 
-		append qry ") VALUES "
 		
-		len: length? columns
+		;-----------
+		; we keep a last slice to call insert-sql() with a cluster of 1
+		; this is for when the given rows are not a perfect multiple of
+		; cluster records.
+		;-----------
+		v?? length? rows
+		if 0 <> extra: modulo length? rows (records * col-count) [
+			;v?? [length? rows]
+			;v?? records
+			v?? extra
+			
+			extra-rows: take/last/part rows extra
+			;v?? extra-rows
+			
+			;ask "!!!!"
+		]
 		
-		until [
-			set: take/part data len
-			qryset: copy ["("]
-			foreach item set [
-				append qryset to-word rejoin [word-name counter]
-				append qry-values item
-				append qryset "," 
-				++ counter
+		;-----------
+		; we only handle exceptions when we're not atomic
+		; they are used for transaction control
+		;-----------
+		either atomic [
+			exec: :do
+		][
+			exec: :try
+		]
+
+		
+		
+		foreach column columns [
+			;v?? column
+			append cols column 
+			append cols ","
+			append vals "?,"
+		]
+		take/last vals
+		
+		vals: rejoin ["(" vals ")"]
+		
+		record-sets: copy vals
+		loop (records - 1) [
+			append record-sets ","
+			append record-sets vals
+		]
+		
+		take/last cols 
+		take/last vals
+		
+		
+		err: EXEC [
+			unless atomic [START]
+			
+			query: rejoin [ "INSERT INTO `" table "` (" cols ") VALUES " record-sets  ]
+			statement: mysr.create-statement session query length? query
+			
+			either types [
+				if (length? columns) <> (length? types)[
+					to-error "insert-sql() types and columns must be of the same length"
+				]
+			][
+				types: head insert/dup copy [] 'string! col-count
 			]
-			remove back tail  qryset
-			append qryset ")"
-			append qry qryset
-			append qry ","
-		
-			empty? data 
+			v?? statement
+			
+			;types: reduce types ; in case
+			;vprint "reduced types"
+			;v?? types
+			query-buffers:  copy [  ]
+			
+			column-count: records * ( length? columns)
+			v?? column-count
+			;v?? query
+			v?? types
+			
+			loop records [
+				foreach type types [
+					;vprint type
+					switch/default type [
+						string! [
+							;vprint "string >"
+							buffer: head insert/dup copy "" "^@" power 2 16 ; enough for 16k of text.
+							append query-buffers buffer
+							mysr.bind-string-value statement buffer length? buffer
+							;vprint "< string"
+						]
+						decimal! [
+							;vprint "decimal >"
+							mysr.bind-decimal-value statement 
+							;vprint "< decimal"
+						]
+						integer! [
+							;vprint "> integer"
+							mysr.bind-integer-value statement 
+							;vprint "< integer"
+						]
+					][
+						to-error "insert-sql() invalid type given, choose from  [ string! integer! decimal! ]"
+					]
+				]
+				
+			]
+			v?? statement
+			;ask "..."
+			mysr.bind-statement statement
+			vprint "statement bound"
+			;ask "-->"
+			
+			; send data and execute statements.
+			vin "inserting data loop"
+			while[not empty? rows] [
+				;vprint "=================================="
+				mysr.new-row statement
+				;copy/part rows col-count
+				;v?? label
+				;vprobe copy/part columns 2
+				;vprobe rows
+				loop records [
+					repeat i col-count [
+						;v?? rows
+						item: pick rows i
+						type: pick types i
+						
+						;v?? i
+						;v?? item
+						;v?? type
+						;v?? item
+						;v?? i
+						switch type [
+							string! [
+								;vprint "inserting string"
+								str: form item
+								mysr.set-string statement str  (length? str)
+							]
+							decimal! [
+								;vprint "inserting decimal"
+								item: round/to item 0.0001
+								str: form item
+								mysr.set-decimal statement  str (length? str)
+							]
+							integer! [
+								;vprint "inserting integer"
+								mysr.set-integer statement to-integer item
+							]
+						]
+					]
+					rows: skip rows col-count
+					;vprint "row done"
+				]
+				lines-changed: mysr.do-statement statement
+				if lines-changed < 1 [
+					vprint "ERROR Executing the statement, breaking loop"
+					success: false
+					break
+				]
+				;tail? rows
+			]
+			vout
+			rows
+		] 
+		if statement <> 0 [
+			; in all cases, ok or error...
+			mysr.release-statement statement
 		]
-		take/last qry
 		
-		;v?? qry
-		;v?? qry-values
-		query qry qry-values
 		
-		;vout
+		;-----------
+		; if we have a few extra rows of data which don`t fit within the last cluster
+		;-----------
+		if extra-rows [
+			; we run an insert-sql with the same setup except 
+			success: apply :insert-sql [table columns extra-rows using session typed types true true 1]
+		]
+		
+		
+		
+		unless atomic [
+			either error? err [
+				success: false
+				disarm err
+				ROLLBACK
+			][
+				COMMIT
+			]
+		]
+		
+		vout
+		success
 	]
+	
 	
 	
 	
@@ -1350,16 +1504,6 @@ slim/register [
 	;           leaves the rest as-is.
 	;
 	;           it then binds the resulting block and calls 'DO on it.
-	;
-	; inputs:   
-	;
-	; returns:  
-	;
-	; notes:    
-	;
-	; to do:    
-	;
-	; tests:    
 	;--------------------------
 	do-mysql: funcl [
 		[catch]

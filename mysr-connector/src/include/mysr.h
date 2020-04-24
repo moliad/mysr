@@ -48,10 +48,9 @@ DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd
 //--------------------------
 DLL_EXPORT int mysr_init();
 
+
 //--------------------------
 //-     mysr_tracelog()
-//--------------------------
-
 //--------------------------
 DLL_EXPORT int mysr_tracelog (char* filepath);
 
@@ -93,6 +92,120 @@ DLL_EXPORT char *mysr_mold_row_count(int count);
 // purpose:  converts a string to a rebol error
 //--------------------------
 DLL_EXPORT char *mysr_mold_error(const char *error);
+
+
+
+//-                                                                                                       .
+//-----------------------------------------------------------------------------------------------------------
+//
+//- PREPARED STATEMENT MANAGEMENT
+//
+//-----------------------------------------------------------------------------------------------------------
+//--------------------------
+//-     mysr_create_statement()
+//--------------------------
+DLL_EXPORT MysrStatement *mysr_create_statement (
+	MysrSession *session, 
+	char *query, 
+	int querylen
+);
+
+
+//--------------------------
+//-     mysr_release_statement()
+//--------------------------
+DLL_EXPORT void mysr_release_statement(
+	MysrStatement *statement
+);
+
+
+//--------------------------
+//-     mysr_stmt_new_row()
+//--------------------------
+DLL_EXPORT void mysr_stmt_new_row(
+	MysrStatement *statement
+);
+
+
+//--------------------------
+//-     mysr_stmt_bind_string_value()
+//--------------------------
+DLL_EXPORT int mysr_stmt_bind_string_value(
+	MysrStatement	*statement,
+	char 			*buffer,
+	int			 	 len        // length of buffer string,
+);
+
+
+//--------------------------
+//-     mysr_stmt_bind_integer_value()
+//--------------------------
+DLL_EXPORT int mysr_stmt_bind_integer_value (
+	MysrStatement *statement
+);
+
+
+//--------------------------
+//-     mysr_stmt_bind_decimal_value()
+//--------------------------
+DLL_EXPORT int mysr_stmt_bind_decimal_value(
+	MysrStatement	*statement
+);
+
+
+//--------------------------
+//-     mysr_stmt_null_param()
+//--------------------------
+DLL_EXPORT int mysr_stmt_set_null_value (
+	MysrStatement *statement
+);
+
+
+//--------------------------
+//-     mysr_stmt_set_string_value()
+//--------------------------
+DLL_EXPORT int mysr_stmt_set_string_value(
+	MysrStatement *statement,
+	char *text,
+	int len // number of characters without null termination, if any.
+);
+
+
+//--------------------------
+//-     mysr_stmt_set_integer_value()
+//--------------------------
+DLL_EXPORT int mysr_stmt_set_integer_value (
+	MysrStatement *statement,
+	int value
+);
+
+
+//--------------------------
+//-     mysr_bind_statement()
+//--------------------------
+// purpose:  transfer the bind call to the server.
+//
+// returns:  error number or 0 for success
+//--------------------------
+DLL_EXPORT int mysr_bind_statement(
+	 MysrStatement *statement
+);
+
+
+//--------------------------
+//-     mysr_run_statement()
+//--------------------------
+// purpose:  execute a mysql preparred statement once all values are set.
+//
+// returns:  number of rows affected.  returns -1 if an error occured.
+//
+// notes:    
+//
+// to do:    
+//--------------------------
+DLL_EXPORT int mysr_run_statement(
+	MysrStatement *statement
+);
 
 
 

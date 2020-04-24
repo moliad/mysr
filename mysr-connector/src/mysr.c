@@ -19,6 +19,7 @@
 #define VERBOSE
 #include "vprint.h"
 #include "binary_log_types.h" // from mysql
+//#include <assert.h>
 
 
 //-                                                                                                       .
@@ -449,7 +450,7 @@ const char *mold_mysql_type(int type){
 //--------------------------
 void mysr_probe_result(MYSQL_RES *result){
 	unsigned int field_cnt = 0;
-	int i=0;
+	unsigned int i=0;
 
 	vin("mysr_probe_result()");
 	if (result == NULL){
@@ -843,12 +844,11 @@ DLL_EXPORT void mysr_free_data(void *data){
 //-                                                                                                       .
 //-----------------------------------------------------------------------------------------------------------
 //
-//- DB QUERY FUNCTIONS
+//- PREPARED STATEMENT MANAGEMENT
 //
 //-----------------------------------------------------------------------------------------------------------
-
 //--------------------------
-//-     mysr_stmt_create()
+//-     mysr_create_statement()
 //--------------------------
 // purpose:  
 //
@@ -856,81 +856,104 @@ DLL_EXPORT void mysr_free_data(void *data){
 //
 // returns:  
 //
-// notes:    - params must match the actual number of params within the query.
+// notes:    - data must match the actual number of data within the query.
 //           - we will want to add some form of error reporting
 //
 // to do:    
 //
 // tests:    
 //--------------------------
-DLL_EXPORT MYSQL_STMT *mysr_stmt_create(
+DLL_EXPORT MysrStatement *mysr_create_statement (
 	MysrSession *session, 
 	char *query, 
-	int querylen, 
-	int count
+	int querylen
 ){
-	MYSQL_STMT    *stmt=NULL;
+	//MYSQL_STMT		*stmt=NULL;
+	MysrStatement	*statement = NULL;
+	int				 values_count = 0;
 
-	vin("mysr_stmt_create()");
-	
-	stmt = mysql_stmt_init(session->connection);
-	
-	if (stmt){
-		if (mysql_stmt_prepare(stmt, query, querylen)){
-			// error, quit
-			mysql_stmt_close(stmt);
-			stmt = NULL;
-		}
+	vin("mysr_create_statement()");
+	if (querylen < 1){
+		goto error;
 	}
-	if (stmt){
-		int param_count = 0;
-		param_count= mysql_stmt_param_count(stmt);
-		if (count==param_count){
-			// ready to get params setup
-			//return stmt;
-			
-		}else{
-			// error wrong number of params.
-			mysql_stmt_close(stmt);
-			stmt=NULL;
-			
-		}
+	
+	statement = calloc(1, sizeof(MysrStatement));
+	if (! statement){
+		vprint("unable to allcate MysrStatement, out of memory")
+		goto error;
 	}
+	vptr(statement);
+	//assert(statement->current_value == 0);
+	vprint("allocated statement");
+	vprint("query: %s", query);
+	
+	//----------------
+	// setup the mysql statement
+	//----------------
+	statement->mysql_stmt = mysql_stmt_init(session->connection);
+	if (! statement->mysql_stmt){
+		vprint ("unable to init mysql statement, out of memory");
+		goto error;
+	}
+	vptr(statement->mysql_stmt);
+	if (mysql_stmt_prepare(statement->mysql_stmt, query, querylen)){
+		// error, quit
+		vprint(mysql_stmt_error(statement->mysql_stmt));
+		goto error;
+	}
+	values_count = mysql_stmt_param_count(statement->mysql_stmt);
+	vnum(values_count);
+	if (values_count <= 0){
+		// error wrong number of values.
+		vprint ("Error, no param values in query!.");
+		goto error;
+	}
+	//assert(values_count == 2); // temporary, for tests
+	
+	//----------------
+	// ready setup values
+	//----------------
+	vprint("ready to prepare param storage and parameter setup for %i values.", values_count);
+	statement->bound_values = calloc(values_count, sizeof(MYSQL_BIND));
+	if (!statement->bound_values){
+		vprint ("error, unable to allocate space for statement->bound_values")
+		goto error;
+	}
+	statement->data = calloc(values_count, sizeof(MysrStmtData) );
+	if (! statement->data){
+		vprint ("error, unable to allocate space for statement->data")
+		goto error;
+	}
+	
+	//----------------
+	// ready to get params setup
+	//----------------
+	statement->session = session;
+	statement->query = query;
+	statement->length = querylen;
+	statement->values_count = values_count;
+	
+
+	//-----
+	// all is good, skip error
+	vprint("MysrStatement completely setup.")
+	goto end_of_func;
+	
+error:	
+	// free memory if an error occurs
+	vstr("ERROR!!!")
+	mysr_release_statement(statement);
+	statement = NULL;
+
+end_of_func:
 	vout;
 	
-	return stmt;
+	return statement;
 }
 
 
-
-
-
 //--------------------------
-//-     mysr_build_params()
-//--------------------------
-// purpose:  allocates an array of params.
-//
-// inputs:   
-//
-// returns:  
-//
-// notes:    
-//
-// to do:    
-//
-// tests:    
-//--------------------------
-DLL_EXPORT MYSQL_BIND *mysr_build_params(int count){
-	MYSQL_BIND *params = NULL;
-	vin("mysr_build_params()");
-	params = calloc(count, sizeof(MYSQL_BIND));
-	vout;
-	return params;
-}
-
-
-//--------------------------
-//-     mysr_set_param()
+//-     mysr_release_statement()
 //--------------------------
 // purpose:  
 //
@@ -944,19 +967,468 @@ DLL_EXPORT MYSQL_BIND *mysr_build_params(int count){
 //
 // tests:    
 //--------------------------
-void mysr_set_param(
-	MYSQL_BIND *params, 
-	int idx,
-	enum enum_field_types type
+DLL_EXPORT void mysr_release_statement(
+	MysrStatement *statement
 ){
-	vin("mysr_set_param()");
-	
+	vin("mysr_release_statement()");
+	vptr(statement);
+	if (statement){
+		if (statement->mysql_stmt){
+			mysql_stmt_close(statement->mysql_stmt);
+		}
+		if(statement->data){
+			free(statement->data);
+		}
+		if(statement->bound_values){
+			free(statement->bound_values);
+		}
+		free(statement);
+		statement = NULL;
+	}	
 	vout;
+}
+
+
+//--------------------------
+//-     mysr_stmt_new_row()
+//--------------------------
+// purpose:  
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    if the statement is invalid, doesn't complain.
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT void mysr_stmt_new_row(
+	MysrStatement *statement
+){
+	vin("mysr_stmt_new_row()");
+	if(statement){
+		statement->current_value = 0;
+	}
+	vout;
+}
+
+
+//--------------------------
+//-     mysr_stmt_bind_string_value()
+//--------------------------
+// purpose:  setup and set the next value as a string.
+//
+// inputs:   
+//
+// returns:  success as 1, failure as 0
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_stmt_bind_string_value(
+	MysrStatement	*statement,
+	char 			*buffer,
+	int			 	 len        // length of buffer string,
+){
+	int success = FALSE;
+	int i=0;
+	MysrStmtData	*data=NULL;
+	MYSQL_BIND 		*value=NULL;
+	
+	vin("mysr_stmt_bind_string_value()");
+	vptr(statement);
+	if (statement){
+		i = statement->current_value;
+		if (i < statement->values_count){
+			value = &statement->bound_values[i];
+			data = &statement->data[i];
+			data->isnull = 0;
+			
+			// we store the buffer's information here.  this is used by set_string() later.
+			data->text = buffer;
+			data->length = 0;  // here we store the current length of string value
+			
+			
+			value->buffer_type = MYSQL_TYPE_STRING;
+			value->buffer = buffer;
+			value->buffer_length= len;  // static size of buffer indepenent of data stored inside
+			value->is_null= &data->isnull;
+			value->length= &data->length;
+			
+			statement->current_value++;
+			success = TRUE;
+		}
+	}
+	vout;
+	return success;
 }
 
 
 
 
+//--------------------------
+//-     mysr_stmt_bind_integer_value()
+//--------------------------
+// purpose:  
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    - no need to provide a buffer, we use a char array from the MysrStmtData struct
+//           - we currently expect the decimal to be specced as 10.4
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_stmt_bind_integer_value (
+	MysrStatement *statement
+){
+	int success = FALSE;
+	int i=0;
+	MysrStmtData	*data=NULL;
+	MYSQL_BIND 		*value=NULL;
+
+	vin("mysr_stmt_bind_integer_value()");
+	if (statement){
+		i = statement->current_value;
+		if (i < statement->values_count){
+			value = &statement->bound_values[i];
+			data = &statement->data[i];
+			data->isnull = 0;
+			
+			// we assign the pointer to the integer value
+			value->buffer = &data->i32;
+			value->buffer_type = MYSQL_TYPE_LONG;
+			value->is_null= &data->isnull;
+			statement->current_value++;
+			success = TRUE;
+		}
+	}
+	vout;
+	return success;
+}
+
+
+
+//--------------------------
+//-     mysr_stmt_bind_decimal_value()
+//--------------------------
+// purpose:  setup a decimal type value.
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_stmt_bind_decimal_value(
+	MysrStatement	*statement
+){
+	int success=FALSE;
+	int i=0;
+	int size = 0;
+	MysrStmtData	*data=NULL;
+	MYSQL_BIND 		*value=NULL;
+	
+	vin("mysr_stmt_bind_decimal_value()");
+	
+	vptr(data->decimal);
+	
+	vptr(statement);
+	if (statement){
+		i = statement->current_value;
+		if (i < statement->values_count){
+			value = &statement->bound_values[i];
+			data = &statement->data[i];
+			data->isnull = 0;
+			size = sizeof(data->decimal); // a static array, has a sizeof (16 ?)
+			
+			value->buffer_type = MYSQL_TYPE_DECIMAL;
+			value->buffer = data->decimal;
+			value->buffer_length= size;  // static size of buffer indepenent of data stored inside
+			value->is_null= &data->isnull;
+			value->length= &data->length;
+
+			statement->current_value++;
+			success = TRUE;
+		}
+	}
+	
+	vout;
+	return success;
+}
+	
+
+
+//--------------------------
+//-     mysr_stmt_set_null_value()
+//--------------------------
+// purpose:  
+//
+// inputs:   
+//
+// returns:  
+//
+// notes:    doesn't change type of value, just sets it as a null.
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_stmt_set_null_value (
+	MysrStatement *statement
+){
+	int i=0;
+	int success=FALSE;
+	MysrStmtData	*data=NULL;
+	
+	vin("mysr_stmt_null_param()");
+	
+	i = statement->current_value;
+	if ( i < statement->values_count){
+		data = &statement->data[i];
+		data->isnull = 1; //  temporarily set the value to null
+		statement->current_value++;
+		success = TRUE;
+	}
+	
+	vout;
+	return success;
+}
+
+
+
+//--------------------------
+//-     mysr_stmt_set_string_value()
+//--------------------------
+// purpose:  set a string value to a new text
+//
+// inputs:   given string doesn't require NULL termination
+//
+// returns:  
+//
+// notes:    values are given in succession so no index is required.
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_stmt_set_string_value(
+	MysrStatement *statement,
+	char *text,
+	int len // number of characters without null termination, if any.
+){
+	int success = FALSE;
+	int i=0;
+	MysrStmtData	*data=NULL;
+	//MYSQL_BIND 		*value=NULL;
+	
+	vin("mysr_stmt_set_string_value()");
+	vptr(statement);
+	vstr(text);
+	vnum(len);
+	
+
+	if (statement == NULL) goto error;
+	i = statement->current_value;
+	// make sure given strength fits in buffer.
+	if (i >= statement->values_count) goto error;
+	if (len > (int) statement->bound_values[i].buffer_length) goto error;
+	if (statement->bound_values[i].buffer_type != MYSQL_TYPE_STRING) goto error;
+		
+	data = &statement->data[i];
+	data->isnull = 0;
+	
+	// we setup the information in the buffer.
+	memcpy(data->text, text, len);
+	data->length = len;  // here we store the current length of string value
+	statement->current_value ++;
+	success = TRUE;
+
+error:
+	
+	vout;
+	return success;
+}
+
+//--------------------------
+//-     mysr_stmt_set_decimal_value()
+//--------------------------
+// purpose:  set a decimal value to a new text
+//
+// inputs:   given string doesn't require NULL termination
+//
+// returns:  
+//
+// notes:    values are given in succession so no index is required.
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_stmt_set_decimal_value(
+	MysrStatement *statement,
+	char *text,
+	int len // number of characters without null termination, if any.
+){
+	int success = FALSE;
+	int i=0;
+	MysrStmtData	*data=NULL;
+	//MYSQL_BIND 		*value=NULL;
+	
+	vin("mysr_stmt_set_decimal_value()");
+	vptr(statement);
+	vstr(text);
+	vnum(len);
+	
+
+	if (statement == NULL) goto error;
+	i = statement->current_value;
+	// make sure given strength fits in buffer.
+	if (i >= statement->values_count) goto error;
+	if (statement->bound_values[i].buffer_type != MYSQL_TYPE_DECIMAL) goto error;
+	if (len > (int) statement->bound_values[i].buffer_length) goto error;
+		
+	data = &statement->data[i];
+	data->isnull = 0;
+	
+	// we setup the information in the buffer.
+	memcpy(&data->decimal, text, len);
+	data->length = len;  // here we store the current length of string value
+	statement->current_value ++;
+	success = TRUE;
+
+error:
+	
+	vout;
+	return success;
+}
+
+
+
+
+//--------------------------
+//-     mysr_stmt_set_integer_value()
+//--------------------------
+// purpose:  
+//
+// returns:  
+//
+// notes:    - no need to provide a buffer, we use a char array from the MysrStmtData struct
+//           - we currently expect the decimal to be specced as 10.4
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+DLL_EXPORT int mysr_stmt_set_integer_value (
+	MysrStatement *statement,
+	int value
+){
+	int success = FALSE;
+	int i=0;
+	MysrStmtData	*data=NULL;
+
+	vin("mysr_stmt_set_integer_value()");
+
+	if (statement == NULL) goto error;
+	i = statement->current_value;
+	// make sure given strength fits in buffer.
+	if (i >= statement->values_count) goto error;
+	if (statement->bound_values[i].buffer_type != MYSQL_TYPE_LONG) goto error;
+		
+	data = &statement->data[i];
+	
+	// we assign the pointer to the integer value
+	data->isnull = 0;
+	data->i32 = value;
+	statement->current_value++;
+	success = TRUE;
+
+error:
+
+	vout;
+	return success;
+}
+
+
+//--------------------------
+//-     mysr_bind_statement()
+//--------------------------
+// purpose:  transfer the bind call to the server.
+//
+// returns:  error number or 0 for success
+//--------------------------
+DLL_EXPORT int mysr_bind_statement(
+	 MysrStatement *statement
+){
+	int error=0;
+	vin("mysr_bind_statement()");
+	if (statement){
+		error = mysql_stmt_bind_param(statement->mysql_stmt, statement->bound_values);
+	} else {
+		error = -1;
+	}
+	vout;
+	return error;
+}
+
+
+//--------------------------
+//-     mysr_run_statement()
+//--------------------------
+// purpose:  execute a mysql preparred statement once all values are set.
+//
+// returns:  number of rows affected.  returns -1 if an error occured.
+//
+// notes:    
+//
+// to do:    
+//--------------------------
+DLL_EXPORT int mysr_run_statement(
+	MysrStatement *statement
+){
+	int rows=0;
+	
+	vin("mysr_run_statement()");
+	if (statement){
+		rows = mysql_stmt_execute(statement->mysql_stmt);
+		if (rows){
+			
+			vstr(mysql_stmt_error(statement->mysql_stmt));
+			rows = -1;
+		} else {
+			rows = (int)mysql_stmt_affected_rows(statement->mysql_stmt);
+		}
+	} else {
+		rows = -2;
+	}
+	vout;
+
+	return rows;
+}
+
+
+
+
+
+//-                                                                                                       .
+//-----------------------------------------------------------------------------------------------------------
+//
+//- DB QUERY FUNCTIONS
+//
+//-----------------------------------------------------------------------------------------------------------
 
 
 
@@ -1096,7 +1568,7 @@ DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
 			if(mysql_field_count(session->connection) == 0) {
 				// query does not return data
 				// (it was not a SELECT)
-				num_rows = mysql_affected_rows(session->connection);
+				num_rows = (unsigned int) mysql_affected_rows(session->connection);
 				vprint("Query affected %i rows", num_rows);
 				molded_str = mysr_mold_row_count(num_rows);
 			} else {
