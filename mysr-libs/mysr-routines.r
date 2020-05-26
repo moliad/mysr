@@ -361,7 +361,7 @@ slim/register [
 	;--------------------------
 	mysr.do-statement: make routine! [
 		statement	[integer!] "A pointer to the internal statement object."
-		return: 	[integer!] "error code"
+		return: 	[string!] "rebol loadable return value (use load-mysr within a throw-on-error[])"
 	] mysr.dll "mysr_run_statement"
 	
 	;-                                                                                                       .

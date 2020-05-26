@@ -688,6 +688,28 @@ DLL_EXPORT char *mysr_mold_error(const char *error){
 
 
 //--------------------------
+//-     mysr_mold_typed_error()
+//--------------------------
+// purpose:  converts a string to a rebol error
+//--------------------------
+DLL_EXPORT char *mysr_mold_typed_error(const char *error, const char *type){
+	MoldValue	*mv = NULL;
+	int			 len = 0;
+	char		*rval = NULL;
+	
+	vin("mysr_mold_error()");
+	mv  = mysr_prep_error(type, error);
+	len = mold_list(mv, resultbuffer, resultbuffersize, 0);
+	if(len){
+		rval = resultbuffer;
+	}
+	vout;
+	
+	return rval;
+}
+
+
+//--------------------------
 //-     mysr_mold_row_count()
 //--------------------------
 // purpose:  prepare a row count result for rebol.
@@ -1390,35 +1412,110 @@ DLL_EXPORT int mysr_bind_statement(
 //--------------------------
 // purpose:  execute a mysql preparred statement once all values are set.
 //
-// returns:  number of rows affected.  returns -1 if an error occured.
+// returns:  rebol loadable result
 //
 // notes:    
 //
 // to do:    
 //--------------------------
-DLL_EXPORT int mysr_run_statement(
+DLL_EXPORT char *mysr_run_statement(
 	MysrStatement *statement
 ){
-	int rows=0;
+	char *molded_str=NULL;
+	int error=0;
 	
 	vin("mysr_run_statement()");
 	if (statement){
-		rows = mysql_stmt_execute(statement->mysql_stmt);
-		if (rows){
-			
-			vstr(mysql_stmt_error(statement->mysql_stmt));
-			rows = -1;
-		} else {
-			rows = (int)mysql_stmt_affected_rows(statement->mysql_stmt);
-		}
+		error = mysql_stmt_execute(statement->mysql_stmt);
+		molded_str = mysr_stmt_response(statement, error);
 	} else {
-		rows = -2;
+		molded_str = mysr_mold_error( "Prepared statement is NULL" );
 	}
 	vout;
 
-	return rows;
+	return molded_str;
 }
 
+
+
+
+//--------------------------
+//-     mysr_stmt_response()
+//--------------------------
+// purpose:  generate a response for current PREPARED STATEMENT session, it should adapt to last query 
+//           and automatically return proper rebol loadable string.
+//
+// inputs:   set is_error to true if you know before generating response than an error occured.
+//
+// returns:  
+//
+// notes:    currently only supports insert queries with row count output.
+//
+// to do:    add support for result data looping, if a response buffer dataset has been previously setup.
+//
+// tests:    
+//--------------------------
+char *mysr_stmt_response(MysrStatement *statement, int is_error){
+	unsigned int num_rows;
+	char *molded_str=NULL;
+	char *error=NULL;
+
+	//--------------------------
+	// WE CURRENTLY ASSUME ONLY INSERT STATEMENT SUPPORT !!!!
+	//--------------------------
+	vin("mysr_stmt_response()");
+	if (is_error) {
+		//------
+		// error
+		//------
+		error = (char *) mysql_stmt_error(statement->mysql_stmt);
+		vprint ("MySQL Prepared Statement ERROR! %s", error);
+		molded_str = mysr_mold_error(error); 
+	} else {
+		//------
+		// INSERT query success, process any data returned by it
+		//------
+		num_rows = (int)mysql_stmt_affected_rows(statement->mysql_stmt);
+		molded_str = mysr_mold_row_count(num_rows);
+	}
+
+
+	//--------------------------
+	//--------------------------
+	//
+	//     WHEN WE'LL SUPPORT  SELECT STATEMENTS, THE MysrStatement WILL
+	//     HABE BEEN SETUP WITH WHAT WE NEED TO LOOP AND COLLECT ROWS.
+	//
+	//
+	//     THE LOOP IS ALMOST THE SAME, BUT WITH _stmt_ VARIANT FUNCTIONS
+	//--------------------------
+	//--------------------------
+	//
+	//	result = mysql_store_result(session->connection);
+	//	if (result) {
+	//		// there are rows
+	//		molded_str = mysr_mold_result(result);
+	//	} else {
+	//		// mysql_store_result() returned nothing; should it have?
+	//		if(mysql_field_count(session->connection) == 0) {
+	//			// query does not return data
+	//			// (it was not a SELECT)
+	//			num_rows = (unsigned int) mysql_affected_rows(session->connection);
+	//			vprint("Query affected %i rows", num_rows);
+	//			molded_str = mysr_mold_row_count(num_rows);
+	//		} else {
+	//			// mysql_store_result() should have returned data
+	//			error = (char *) mysql_error(session->connection);
+	//			if (error){
+	//				vprint ("MySQL Query ERROR! %s", error);
+	//				molded_str = mysr_mold_error(error) ; // we cannot set type...it's blocked to generic.
+	//			}
+	//		}
+	//	}
+	
+	vout;
+	return molded_str;	
+}
 
 
 
@@ -1538,27 +1635,93 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter){
 //--------------------------
 DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
 	vin("mysr_query()");
+	char *molded_str=NULL;
+	int error=0;
+
+	vprint(query_string);
+	error = mysql_query(session->connection, query_string);
+	molded_str = mysr_response(session, error);
+
+//	if (){
+//		//------
+//		// error
+//		//------
+//		//error = build(mold_word,"error");
+//		//error -> next = build(mold_string, mysql_error(session->connection));
+//		error = (char *) mysql_error(session->connection);
+//		vprint ("MySQL Query ERROR! %s", error);
+//		molded_str = mysr_mold_error(error); // we cannot set type...it's blocked to generic.
+//		//vout;
+//		//return error;
+//	} else {
+//		 // query succeeded, process any data returned by it
+//		result = mysql_store_result(session->connection);
+//		if (result) {
+//			// there are rows
+//			molded_str = mysr_mold_result(result);
+//		} else {
+//			// mysql_store_result() returned nothing; should it have?
+//			if(mysql_field_count(session->connection) == 0) {
+//				// query does not return data
+//				// (it was not a SELECT)
+//				num_rows = (unsigned int) mysql_affected_rows(session->connection);
+//				vprint("Query affected %i rows", num_rows);
+//				molded_str = mysr_mold_row_count(num_rows);
+//			} else {
+//				// mysql_store_result() should have returned data
+//				//error = build(mold_word,"error");
+//				//error -> next = build(mold_string, mysql_error(session->connection));
+//				error = (char *) mysql_error(session->connection);
+//				if (error){
+//					vprint ("MySQL Query ERROR! %s", error);
+//					//vout;
+//					//return error;
+//					molded_str = mysr_mold_error(error) ; // we cannot set type...it's blocked to generic.
+//				}
+//			}
+//		}
+//	}
+	vout;
+	return molded_str;
+}
+
+
+
+
+//--------------------------
+//-     mysr_response()
+//--------------------------
+// purpose:  generate a response for current session, it should adapt to last query 
+//           and automatically return proper rebol loadable string.
+//
+// inputs:   set is_error to true if you know before generating response than an error occured.
+//
+// returns:  
+//
+// notes:    
+//
+// to do:    
+//
+// tests:    
+//--------------------------
+char *mysr_response(MysrSession *session, int is_error){
 	MYSQL_RES *result;
-	//unsigned int num_fields;
 	unsigned int num_rows;
 	char *molded_str=NULL;
 	char *error=NULL;
 
-	vprint(query_string);
-
-	if (mysql_query(session->connection, query_string)){
+	vin("mysr_response()");
+	if (is_error) {
 		//------
 		// error
 		//------
-		//error = build(mold_word,"error");
-		//error -> next = build(mold_string, mysql_error(session->connection));
 		error = (char *) mysql_error(session->connection);
 		vprint ("MySQL Query ERROR! %s", error);
 		molded_str = mysr_mold_error(error); // we cannot set type...it's blocked to generic.
-		//vout;
-		//return error;
 	} else {
-		 // query succeeded, process any data returned by it
+		//------
+		// query success, process any data returned by it
+		//------
 		result = mysql_store_result(session->connection);
 		if (result) {
 			// there are rows
@@ -1573,20 +1736,18 @@ DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string){
 				molded_str = mysr_mold_row_count(num_rows);
 			} else {
 				// mysql_store_result() should have returned data
-				//error = build(mold_word,"error");
-				//error -> next = build(mold_string, mysql_error(session->connection));
 				error = (char *) mysql_error(session->connection);
 				if (error){
 					vprint ("MySQL Query ERROR! %s", error);
-					//vout;
-					//return error;
 					molded_str = mysr_mold_error(error) ; // we cannot set type...it's blocked to generic.
 				}
 			}
 		}
 	}
 	vout;
-	return molded_str;
+	return molded_str;	
 }
+
+
 
 

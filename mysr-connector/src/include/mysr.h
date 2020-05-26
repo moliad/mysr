@@ -93,6 +93,13 @@ DLL_EXPORT char *mysr_mold_row_count(int count);
 //--------------------------
 DLL_EXPORT char *mysr_mold_error(const char *error);
 
+//--------------------------
+//-     mysr_mold_typed_error()
+//--------------------------
+// purpose:  converts a string to a rebol error
+//--------------------------
+DLL_EXPORT char *mysr_mold_typed_error(const char *error, const char *type);
+
 
 
 //-                                                                                                       .
@@ -203,9 +210,18 @@ DLL_EXPORT int mysr_bind_statement(
 //
 // to do:    
 //--------------------------
-DLL_EXPORT int mysr_run_statement(
+DLL_EXPORT char* mysr_run_statement(
 	MysrStatement *statement
 );
+
+
+//--------------------------
+//-     mysr_stmt_response()
+//--------------------------
+// purpose:  generate a response for current PREPARED STATEMENT session, it should adapt to last query 
+//           and automatically return proper rebol loadable string.
+//--------------------------
+char *mysr_stmt_response(MysrStatement *statement, int is_error);
 
 
 
@@ -250,3 +266,10 @@ DLL_EXPORT char *mysr_list_dbs(MysrSession *session, char *filter);
 //--------------------------
 DLL_EXPORT char *mysr_query(MysrSession *session, char *query_string);
 
+//--------------------------
+//- mysr_response()
+//--------------------------
+// purpose:  generate a response for current session, it should adapt to last query 
+//           and automatically return proper rebol loadable string.
+//--------------------------
+char *mysr_response(MysrSession *session, int iserror);

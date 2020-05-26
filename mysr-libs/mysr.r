@@ -435,13 +435,16 @@ slim/register [
 	connect: funcl [
 		[catch]
 		host [string! tuple!]
-		db [string! word!]
+		db [string! word! none!]
 		usr [string! word!]
 		passwd [string! binary!]
 		/extern default-session
 	][
 		vin "mysr.connect()"
 		
+		if none? db [
+			db: ""
+		]
 		host: to-string host
 		db: to-string db
 		usr: to-string usr
@@ -518,6 +521,9 @@ slim/register [
 						vprint "found unique"	
 						append str " PRIMARY KEY"
 					)
+					| 'not-null (
+						append str " NOT NULL"
+					)
 					| skip
 				]
 			]
@@ -563,6 +569,10 @@ slim/register [
 				sql-type: "LONGTEXT"
 			]
 			
+			date! [
+				sql-type: "DATETIME"
+			]
+			
 			binary! [
 				; by default we use a generic blob type
 				sql-type: "LONGBLOB"
@@ -570,6 +580,9 @@ slim/register [
 			integer! [
 				; by default we use a 32 bit signed integer value (like rebol)
 				sql-type: "INTEGER"
+			]
+			code! [
+				sql-type: "SMALLINT"
 			]
 			autokey! [
 				; simply an integer! with the auto-increment value set to true.
@@ -580,10 +593,20 @@ slim/register [
 				unless find options 'unique [
 					append options 'unique
 				]
+				unless find options 'not-null [
+					append options 'not-null
+				]
+				unless find options 'primary [
+					append options 'primary
+				]
 			]
 			literal! [
 				sql-type: "VARCHAR"
 				append options 255
+			]
+			
+			char! [
+				sql-type: "CHAR"
 			]
 			
 			decimal! [
@@ -599,6 +622,10 @@ slim/register [
 					append options 10x4
 				]
 					
+			]
+			
+			byte! [
+				sql-type: "TINYINT"
 			]
 			
 			json! [
@@ -725,7 +752,7 @@ slim/register [
 		query [string! block!]
 		/raw "returns the raw result string from mysr"
 	][
-		;vin "mysql()"
+		vin "mysql()"
 		session: any [ session default-session ]
 		unless session [
 			throw-on-error [
@@ -733,7 +760,7 @@ slim/register [
 				none
 			]
 		]
-		;vprint query
+		vprint query
 		if block? query [
 			query: rejoin query
 		]
@@ -744,7 +771,7 @@ slim/register [
 				data: load-mysr data
 			]
 		]
-		;vout
+		vout
 		
 		first reduce [data data: none]
 	]
@@ -975,7 +1002,7 @@ slim/register [
 	start: funcl [
 	][
 		vin "start()"
-		result: sql "START TRANSACTION;"
+		result: mysql "START TRANSACTION;"
 		vout
 		result
 	]
@@ -989,7 +1016,7 @@ slim/register [
 	commit: funcl [
 	][
 		vin "commit()"
-		result: sql "COMMIT;"
+		result: mysql "COMMIT;"
 		vout
 		result
 	]
@@ -1003,7 +1030,7 @@ slim/register [
 	rollback: funcl [
 	][
 		vin "rollback()"
-		result: sql "ROLLBACK;"
+		result: mysql "ROLLBACK;"
 		vout
 		result
 	]
@@ -1079,6 +1106,62 @@ slim/register [
 
 	
 	;--------------------------
+	;-     db?()
+	;--------------------------
+	; purpose:  detect if a db already exists.
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	db?: funcl [
+		dbname [word! string!]
+	][
+		success?: false
+		vin "db?()"
+		success?: found? find list-dbs to-string dbname
+		vout
+		success?
+	]
+	
+	
+	
+	;--------------------------
+	;-     table?()
+	;--------------------------
+	; purpose:  detect if a table in current db is already setup
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	table?: funcl [
+		tablename [word! string!]
+	][
+		success?: false
+		vin "table?()"
+	
+		vout
+		success?
+	]
+	
+	
+	
+	
+	
+	;--------------------------
 	;-     create-table()
 	;--------------------------
 	; purpose:  
@@ -1097,6 +1180,7 @@ slim/register [
 		[catch]
 		name [word!]
 		columns [block!]
+		/NOT-NULL
 	][
 		vin "create-table()"
 		
@@ -1110,6 +1194,15 @@ slim/register [
 		.primary?: none ; what is the primary key to this table.
 		.foreign: [] ; setup a reference to an external, existing table column of appropriate type.
 		
+		default-options: copy []
+		col-default-options: copy []
+		
+		
+		if NOT-NULL [
+			append default-options 'NOT-NULL
+		]
+		
+		col-default-options: copy default-options
 		parse columns [
 			some [
 				set .name word!  (v?? .name .name: to-string .name)
@@ -1124,11 +1217,15 @@ slim/register [
 				opt [
 					set .type [
 						  'string! 
+						| 'text!
+						| 'char!      ; static-sized
 						| 'autokey! 
 						| 'binary! 
 						| 'integer! 
+						| 'code!
+						| 'byte!
+						| 'date!
 						| 'decimal! 
-						| 'text!
 						| 'literal!
 						| 'json!
 					]
@@ -1140,12 +1237,19 @@ slim/register [
 				any [
 					set .options block! ( .options append .current-options .options) ;v?? .options
 					
+					| 'NULLABLE ( ; only makes sense if the NOT-NULL is provided as a default
+						if blk: find col-default-options 'NOT-NULL [
+							remove blk
+						]
+					)
+					
 					| set .option [
 						  'PRIMARY 
 						| 'UNIQUE
 						| 'INDEX
 						| 'AUTO-INCREMENT 
 						| 'AUTO_INCREMENT
+						| 'NOT-NULL
 					] ( 
 						;v?? .current-options
 						;v?? .option
@@ -1164,8 +1268,10 @@ slim/register [
 					)
 				]
 				(
+					append .current-options col-default-options
 					append qry reduce [ "^-" .name .sql-type (sql-options .current-options)]
 					append qry ",^/"
+					col-default-options: copy default-options
 				)
 			]
 		]
@@ -1192,6 +1298,29 @@ slim/register [
 		
 	]
 	
+	;--------------------------
+	;-     use()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	use: funcl [
+		dbname [word!]
+	][
+		vin "use()"
+		result: mysql rejoin ["USE " dbname ";"]
+		vout
+		result
+	]
 	
 	
 	
@@ -1277,9 +1406,11 @@ slim/register [
 	; returns:  columns affected.
 	;
 	; notes:    - builds its own transaction
-	;           -  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
 	;--------------------------
 	insert-sql: funcl [
+		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
+		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
+		[catch]
 		table	[word!]		"Table to insert into.  must have a current db, connection must have permissions as usual."
 		columns	[block!]	"Columns to use on insert, default values used as normal for unspecified columns."
 		rows	[block!]	"Data to store, types MUST match data"
@@ -1287,6 +1418,8 @@ slim/register [
 		/typed types [block!]   "a list of datatypes, if types are not given, we will attempt to insert everything as strings."
 		/atomic "Do not run inside of a transaction (it may already be within one)"
 		/cluster records "how many records to insert for each call to sql. MUST be more than 0."
+		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
+		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
 	][
 		vin "insert-sql()"
 		success: true
@@ -1295,6 +1428,8 @@ slim/register [
 		records: any [records 1]
 		cols: clear ""
 		vals: clear ""
+		
+		continue?: false
 
 		;-----------
 		; make sure given rows are an exact multiple of columns.
@@ -1318,7 +1453,6 @@ slim/register [
 			
 			extra-rows: take/last/part rows extra
 			;v?? extra-rows
-			
 			;ask "!!!!"
 		]
 		
@@ -1326,11 +1460,11 @@ slim/register [
 		; we only handle exceptions when we're not atomic
 		; they are used for transaction control
 		;-----------
-		either atomic [
-			exec: :do
-		][
-			exec: :try
-		]
+;		either atomic [
+;			exec: :do
+;		][
+;			exec: :try
+;		]
 
 		
 		
@@ -1341,6 +1475,7 @@ slim/register [
 			append vals "?,"
 		]
 		take/last vals
+		take/last cols 
 		
 		vals: rejoin ["(" vals ")"]
 		
@@ -1350,13 +1485,11 @@ slim/register [
 			append record-sets vals
 		]
 		
-		take/last cols 
-		take/last vals
+		;take/last vals
 		
+		unless atomic [START]
 		
-		err: EXEC [
-			unless atomic [START]
-			
+		if error? err: TRY [
 			query: rejoin [ "INSERT INTO `" table "` (" cols ") VALUES " record-sets  ]
 			statement: mysr.create-statement session query length? query
 			
@@ -1376,7 +1509,7 @@ slim/register [
 			
 			column-count: records * ( length? columns)
 			v?? column-count
-			;v?? query
+			v?? query
 			v?? types
 			
 			loop records [
@@ -1415,40 +1548,39 @@ slim/register [
 			; send data and execute statements.
 			vin "inserting data loop"
 			while[not empty? rows] [
-				;vprint "=================================="
+				vprint "=================================="
 				mysr.new-row statement
-				;copy/part rows col-count
+				copy/part rows col-count
 				;v?? label
 				;vprobe copy/part columns 2
-				;vprobe rows
+				vprobe rows
+				v?? records
 				loop records [
 					repeat i col-count [
 						;v?? rows
 						item: pick rows i
 						type: pick types i
 						
-						;v?? i
-						;v?? item
-						;v?? type
-						;v?? item
-						;v?? i
+						v?? i
+						v?? item
+						v?? type
 						if none? item [
 							type: 'none!
 						]
 						switch type [
 							string! [
-								;vprint "inserting string"
+								vprint "inserting string"
 								str: form item
 								mysr.set-string statement str  (length? str)
 							]
 							decimal! [
-								;vprint "inserting decimal"
+								vprint "inserting decimal"
 								item: round/to item 0.0001
 								str: form item
 								mysr.set-decimal statement  str (length? str)
 							]
 							integer! [
-								;vprint "inserting integer"
+								vprint "inserting integer"
 								mysr.set-integer statement to-integer item
 							]
 							none! [
@@ -1457,20 +1589,25 @@ slim/register [
 						]
 					]
 					rows: skip rows col-count
-					;vprint "row done"
+					vprint "row done"
 				]
-				lines-changed: mysr.do-statement statement
-				if lines-changed < 1 [
-					vprint "ERROR Executing the statement, breaking loop"
-					success: false
-					break
-				]
-				;tail? rows
+				lines-changed: 
+				load-mysr mysr.do-statement statement
 			]
 			vout
-			rows
-		] 
-		if statement <> 0 [
+			continue?: true
+		][
+			vprint "** ERROR CATCHED **"
+			vout  ; exit load-mysr
+			vout  ; exit data loop
+		]
+		
+		
+		
+		if all [
+			integer? statement
+			statement <> 0 
+		][
 			; in all cases, ok or error...
 			mysr.release-statement statement
 		]
@@ -1478,26 +1615,35 @@ slim/register [
 		
 		;-----------
 		; if we have a few extra rows of data which don`t fit within the last cluster
+		; we don't want to nest the mysr.bind-statement and mysr.release-statement
 		;-----------
-		if extra-rows [
-			; we run an insert-sql with the same setup except 
+		if all [
+			extra-rows
+			continue? ; all was good we are ready to do the last few rows which don't fit in a single slice.
+		][
+			; we run an insert-sql with the same setup except cluster is 1
 			success: apply :insert-sql [table columns extra-rows using session typed types true true 1]
 		]
 		
-		
-		
 		unless atomic [
 			either error? err [
-				success: false
-				disarm err
 				ROLLBACK
 			][
 				COMMIT
 			]
 		]
 		
+		
+		;-----
+		; if the previous TRY caught an error, we throw it here, and the [catch] will propagate to calling code.
+		;-----
+		throw-on-error [
+			err
+		]
 		vout
-		success
+		
+		; all was good
+		true
 	]
 	
 	

@@ -25,7 +25,7 @@ tracelog-path:  to-local-file clean-path %mysr-tracelog.txt
 
 print "testing..."
 
-;trace-sql %debug-trace.log
+
 
 
 connect "localhost" "" "root" "123456"
@@ -45,7 +45,7 @@ do-mysql [
 	]
 ]
 
-;
+
 ;it: dt compose/only [
 ;	foreach (columns) next discount-db [ ;contact-db [
 ;		bind columns 'DiscountCode
@@ -60,7 +60,16 @@ do-mysql [
 ;	]
 ;]
 von
+mysr/von
 print "insert"
+
+trace-sql %debug-trace.log
+
+insert-sql 'discount [DiscountCode Discount] ["6CL-PCK-2608-12" 10.1]
+
+ask "..."
+
+quit
 
 print dt [
 	loop 100 [
