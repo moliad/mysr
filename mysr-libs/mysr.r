@@ -2,7 +2,7 @@ REBOL [
 	; -- Core Header attributes --
 	title: "MySQL Rebol connector"
 	file: %mysr.r
-	version: 0.6.0
+	version: 0.7.1
 	date: 2020-02-20
 	author: "Maxim Olivier-Adlhoch"
 	purpose: {Open source full featured mysql connector.}
@@ -1467,8 +1467,6 @@ slim/register [
 ;		][
 ;			exec: :try
 ;		]
-
-		
 		
 		foreach column columns [
 			;v?? column
