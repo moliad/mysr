@@ -426,9 +426,9 @@ slim/register [
 	;
 	; returns:  
 	;
-	; notes:    
+	; notes:     we use automatic reconnections by default
 	;
-	; to do:    get and return mysql error
+	; to do:     get and return mysql error
 	;
 	; tests:    
 	;--------------------------
@@ -438,6 +438,7 @@ slim/register [
 		db [string! word! none!]
 		usr [string! word!]
 		passwd [string! binary!]
+		/no-reconnect
 		/extern default-session
 	][
 		vin "mysr.connect()"
@@ -445,11 +446,12 @@ slim/register [
 		if none? db [
 			db: ""
 		]
+		reconnect: either no-reconnect [-1][1]
 		host: to-string host
 		db: to-string db
 		usr: to-string usr
 		passwd: to-string passwd
-		session: mysr.connect host db usr passwd
+		session: mysr.connect host db usr passwd reconnect
 		
 		throw-on-error [
 			if session = 0 [
@@ -1546,14 +1548,15 @@ slim/register [
 			;ask "-->"
 			
 			; send data and execute statements.
-			vin "inserting data loop"
+			vprint "inserting data loop"
+			;vin "inserting data loop"
 			while[not empty? rows] [
-				vprint "=================================="
+				;vprint "=================================="
 				mysr.new-row statement
 				copy/part rows col-count
 				;v?? label
 				;vprobe copy/part columns 2
-				vprobe rows
+				;vprobe rows
 				v?? records
 				loop records [
 					repeat i col-count [
@@ -1561,26 +1564,26 @@ slim/register [
 						item: pick rows i
 						type: pick types i
 						
-						v?? i
-						v?? item
-						v?? type
+						;v?? i
+						;v?? item
+						;v?? type
 						if none? item [
 							type: 'none!
 						]
 						switch type [
 							string! [
-								vprint "inserting string"
+								;vprint "inserting string"
 								str: form item
 								mysr.set-string statement str  (length? str)
 							]
 							decimal! [
-								vprint "inserting decimal"
+								;vprint "inserting decimal"
 								item: round/to item 0.0001
 								str: form item
 								mysr.set-decimal statement  str (length? str)
 							]
 							integer! [
-								vprint "inserting integer"
+								;vprint "inserting integer"
 								mysr.set-integer statement to-integer item
 							]
 							none! [
@@ -1589,12 +1592,12 @@ slim/register [
 						]
 					]
 					rows: skip rows col-count
-					vprint "row done"
+					;vprint "row done"
 				]
 				lines-changed: 
 				load-mysr mysr.do-statement statement
 			]
-			vout
+			;vout
 			continue?: true
 		][
 			vprint "** ERROR CATCHED **"

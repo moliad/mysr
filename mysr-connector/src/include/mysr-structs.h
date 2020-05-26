@@ -40,6 +40,15 @@ struct MysrSession {
 	MYSQL *connection;
 
 	//--------------------------
+	//-     reconnect:
+	//
+	// stores the state of auto-reconnection.
+	// when connecting we use a pointer to this value to the auto-reconnection mysql_option()
+	//--------------------------
+	int reconnect;
+	
+
+	//--------------------------
 	//-     host:
 	//
 	//--------------------------

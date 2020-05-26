@@ -179,6 +179,7 @@ slim/register [
 		db [string!]
 		user [string!]
 		pwd [string!]
+		reconnect [integer!] ; 1 for reconnect, -1 for no-reconnect, 0 for server default
 		return: [integer!] ; pointer to a mysr session object.
 	] mysr.dll "mysr_connect"
 

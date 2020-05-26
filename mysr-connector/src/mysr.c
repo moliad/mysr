@@ -107,7 +107,7 @@ DLL_EXPORT int test_dll (char *text, int val){
 //
 // tests:
 //--------------------------
-DLL_EXPORT MysrSession *mysr_connect(char *host, char *db, char *usr, char *pwd ){
+DLL_EXPORT MysrSession *mysr_connect(char *host, char *db, char *usr, char *pwd, int reconnect ){
 	MysrSession	*session = NULL;
 	MYSQL 		*connection = NULL;
 	void		*success = NULL;
@@ -138,9 +138,24 @@ DLL_EXPORT MysrSession *mysr_connect(char *host, char *db, char *usr, char *pwd 
 			vprint("MySQL ERROR: %s", mysql_error(NULL));
 		} else {
 			//--------
-			// setup connection options to make session compatible with Rebol
+			// setup connection options 
 			//--------
+			
+			// to make session compatible with Rebol
 			mysql_options(connection, MYSQL_SET_CHARSET_NAME, "latin1");
+			
+			// manage auto-reconnection
+			if (reconnect == 1){
+				// force reconnect to ON
+				session->reconnect = 1; // we must set this up right away, cause the value is refered to via a pointer
+				mysql_options(connection, MYSQL_OPT_RECONNECT, &session->reconnect);
+			}
+			if (reconnect == -1){
+				// force reconnect to OFF
+				session->reconnect = 0; // we must set this up right away, cause the value is refered to via a pointer
+				mysql_options(connection, MYSQL_OPT_RECONNECT, &session->reconnect);
+			}
+				
 
 			//--------
 			// attempt network connection.

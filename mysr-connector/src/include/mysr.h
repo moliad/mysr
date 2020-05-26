@@ -40,7 +40,7 @@ DLL_EXPORT int test_dll (char *text, int val);
 //--------------------------
 //-     mysr_connect()
 //--------------------------
-DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd );
+DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd, int reconnect);
 
 
 //--------------------------
