@@ -1195,10 +1195,10 @@ slim/register [
 		.unique?: false ; does this column only store unique items
 		.primary?: none ; what is the primary key to this table.
 		.foreign: [] ; setup a reference to an external, existing table column of appropriate type.
+		.indexes: copy [] 
 		
 		default-options: copy []
 		col-default-options: copy []
-		
 		
 		if NOT-NULL [
 			append default-options 'NOT-NULL
@@ -1248,17 +1248,19 @@ slim/register [
 					| set .option [
 						  'PRIMARY 
 						| 'UNIQUE
-						| 'INDEX
 						| 'AUTO-INCREMENT 
 						| 'AUTO_INCREMENT
 						| 'NOT-NULL
-					] ( 
+					] (
 						;v?? .current-options
 						;v?? .option
 						if .option = 'AUTO_INCREMENT [ .option: 'AUTO-INCREMENT]
 						unless find .current-options .option [
 							append .current-options .option
 						]
+					)
+					| 'INDEX (
+						append .indexes .name
 					)
 					| set .size integer! (
 						v?? .size 
@@ -1278,6 +1280,16 @@ slim/register [
 			]
 		]
 		remove back tail qry ; just remove last comma
+		
+		; manage indexes... we curently do not support any options for indexing.
+		unless empty? .indexes [
+			foreach column .indexes [
+				append qry rejoin [",^/INDEX (" column ")"]
+			]
+		]
+		
+		
+		
 		; end statement
 		append qry "^/);"
 		;v?? qry

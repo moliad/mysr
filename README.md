@@ -12,17 +12,31 @@ There are very few steps and external dependencies, most of them required by mys
 
 ### You will need these things to BUILD your own version of the library:
 
-* download and install code blocks with mingw
-
-* download this repository
-
-* download common-c-libs repository
-
 * download and install the visual studio 2013 redistributables (from microsoft.com !!).
 
 * download and install the visual studio 2019 redistributables (from microsoft.com !!).
 
-* download and install mysql v5.7.25+ 
+* download this repository
+
+* download and install mysql v5.7.25+, including the C connector SDK
+
+* clone master branch of  [common-c-libs repository](git@github.com:moliad/common-c-libs.git)
+
+* have a version of Rebol which supports dll support (/view or /command)
+
+* get slim for rebol and all library packages [here] 
+
+#### building with Visual Studio
+
+* have a copy of Visual Studio 2017 or more recent
+
+* open the mysrConnector.sln in the root of the project
+
+* that's it  :-)
+
+#### building with GCC
+
+* download and install code blocks with mingw
 
 * copy the `\include\` and `\lib\` folder from the standard mysql installation (`C:\Program Files (x86)\MySQL\MySQL Server 5.7\ `) to your local dev setup (follow directory tree below).  We need to do this so you can write to it because Windows doesn't allow applications to write within `program files` folders, the actual path is aliased to another path.
 
@@ -30,7 +44,7 @@ There are very few steps and external dependencies, most of them required by mys
 
 * run lib2a on the mysql\lib\libmysql.lib file in order to get a libmysql.a file.
 
-* delete the libmysql.lib from your copy of the mysql lib dir...  it confuses GCC.
+* rename the libmysql.lib from your copy of the mysql lib dir...  it confuses GCC.
 
 ### You will need these to USE the library
 
