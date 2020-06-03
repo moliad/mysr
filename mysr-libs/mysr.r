@@ -1196,6 +1196,7 @@ slim/register [
 		.primary?: none ; what is the primary key to this table.
 		.foreign: [] ; setup a reference to an external, existing table column of appropriate type.
 		.indexes: copy [] 
+		.extension: ""
 		
 		default-options: copy []
 		col-default-options: copy []
@@ -1259,6 +1260,16 @@ slim/register [
 							append .current-options .option
 						]
 					)
+					| set .val paren! (
+						; extended syntax given, use mold, convert to string and append at end of spec, as is.	
+						; 
+						; if you want to use the extension exactly, juste wrap it in a curly string { ... } within the paren.
+						; ex: ({ DEFAULT "55"})
+						print "EXTENSION!!"
+						.extension: to-block :.val
+						.extension: join " " form .extension
+						?? .extension
+					)
 					| 'INDEX (
 						append .indexes .name
 					)
@@ -1272,10 +1283,13 @@ slim/register [
 					)
 				]
 				(
+					?? .extension
+					.extension: any [.extension ""]
 					append .current-options col-default-options
-					append qry reduce [ "^-" .name .sql-type (sql-options .current-options)]
+					append qry reduce [ "^-" .name .sql-type (sql-options .current-options)  .extension]
 					append qry ",^/"
 					col-default-options: copy default-options
+					.extension: copy ""
 				)
 			]
 		]
