@@ -2,7 +2,7 @@ REBOL [
 	; -- Core Header attributes --
 	title: "MySQL Rebol connector"
 	file: %mysr.r
-	version: 0.7.1
+	version: 0.7.2
 	date: 2020-02-20
 	author: "Maxim Olivier-Adlhoch"
 	purpose: {Open source full featured mysql connector.}
