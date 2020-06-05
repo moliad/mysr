@@ -434,7 +434,7 @@ slim/register [
 	;--------------------------
 	connect: funcl [
 		[catch]
-		host [string! tuple!]
+		host [string! tuple! word!]
 		db [string! word! none!]
 		usr [string! word!]
 		passwd [string! binary!]
@@ -1265,10 +1265,9 @@ slim/register [
 						; 
 						; if you want to use the extension exactly, juste wrap it in a curly string { ... } within the paren.
 						; ex: ({ DEFAULT "55"})
-						print "EXTENSION!!"
 						.extension: to-block :.val
 						.extension: join " " form .extension
-						?? .extension
+						v?? .extension
 					)
 					| 'INDEX (
 						append .indexes .name
@@ -1283,7 +1282,6 @@ slim/register [
 					)
 				]
 				(
-					?? .extension
 					.extension: any [.extension ""]
 					append .current-options col-default-options
 					append qry reduce [ "^-" .name .sql-type (sql-options .current-options)  .extension]
@@ -1445,15 +1443,17 @@ slim/register [
 		/using session [integer!]	"insert into an alternate session, must still be connected and have permissions for this DB."
 		/typed types [block!]   "a list of datatypes, if types are not given, we will attempt to insert everything as strings."
 		/atomic "Do not run inside of a transaction (it may already be within one)"
-		/cluster records "how many records to insert for each call to sql. MUST be more than 0."
+		/cluster records [integer! word!] "how many records to insert for each call to sql. MUST be more than 0. valid word values: [ ALL ] "
 		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
 		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
 	][
 		vin "insert-sql()"
 		success: true
+		data-count: length? rows
 		col-count: length? columns
+		row-count: data-count / col-count ; should be integer if all argument data is right.
+		
 		session: any [session default-session]
-		records: any [records 1]
 		cols: clear ""
 		vals: clear ""
 		
@@ -1462,10 +1462,21 @@ slim/register [
 		;-----------
 		; make sure given rows are an exact multiple of columns.
 		;-----------
-		if 0 <> modulo length? rows col-count [
+		if 0 <> modulo data-count col-count [
 			vprint ["Given row data is not an appropriate count of " col-count " columns"]
 			vout
 			false
+		]
+		
+		records: any [
+			switch records [
+				all [
+					; always an integer, since we already verified if rows is a multiple of col-count
+					records: row-count
+				 ]
+			]
+			records 
+			1
 		]
 		
 		;-----------
