@@ -44,9 +44,15 @@ DLL_EXPORT MysrSession *mysr_connect( char *host, char *db, char *usr, char *pwd
 
 
 //--------------------------
+//-     mysr_disconnect()
+//--------------------------
+DLL_EXPORT int mysr_disconnect(MysrSession *session);
+
+
+	//--------------------------
 //-     mysr_init()
 //--------------------------
-DLL_EXPORT int mysr_init();
+DLL_EXPORT int mysr_init(int buffersize);
 
 
 //--------------------------

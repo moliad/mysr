@@ -199,6 +199,38 @@ DLL_EXPORT MysrSession *mysr_connect(char *host, char *db, char *usr, char *pwd,
 //--------------------------
 //-     mysr_init()
 //--------------------------
+// purpose:   safely drop a connection with the server.
+//
+// inputs:    valid session object
+//
+// returns:   1 if all is good, 0 if an error occurs, in any case, do not use the session anymore.
+//
+// notes:
+//
+// to do:
+//
+// tests:
+//--------------------------
+DLL_EXPORT int mysr_disconnect(MysrSession *session) {
+	if (session){
+		mysql_close( session->connection);
+		if (session->connection) {
+			free(session->connection);
+		}
+		if (session) {
+			free(session);
+		}
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+
+
+//--------------------------
+//-     mysr_init()
+//--------------------------
 // purpose:
 //
 // inputs:

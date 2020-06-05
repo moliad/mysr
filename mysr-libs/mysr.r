@@ -137,7 +137,7 @@ slim/register [
 	;
 	;-----------------------------------------------------------------------------------------------------------
 	slim/open/expose 'mysr-routines none [ 
-		mysr.test  mysr.init  mysr.connect  mysr.tracelog
+		mysr.test  mysr.init  mysr.connect  mysr.disconnect  mysr.tracelog
 		mysr.list-dbs  mysr.query  mysr.escape-string-quote
 		mysr.create-statement  mysr.release-statement  mysr.new-row  
 		mysr.bind-string-value  mysr.bind-integer-value  mysr.bind-decimal-value
@@ -466,7 +466,43 @@ slim/register [
 		session
 	]
 
-
+	;--------------------------
+	;-     disconnect()
+	;--------------------------
+	; purpose:  close connection and free binary resources for this connection session
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	disconnect: funcl [
+		/using session [integer!]
+		/extern default-session
+	][
+		vin "disconnect()"
+		session: any  [session default-session]
+		
+		either all [
+			integer? session
+			session <> 0
+		][
+			result: mysr.disconnect session
+			if result <> 1 [
+				to-error "mysr/disconnect() mysr returned error trying to disconnect"
+			] 
+		][
+			to-error "mysr/disconnect() invalid session given"
+		]
+		
+		default-session: none
+		vout
+	]
 
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------

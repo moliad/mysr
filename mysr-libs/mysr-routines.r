@@ -185,6 +185,16 @@ slim/register [
 
 
 	;--------------------------
+	;-     mysr.disconnect()
+	;
+	;--------------------------
+	mysr.disconnect: make routine! [
+		session-handle [integer!]
+		return: [integer!] ; 1 for success, 0 for failure
+	] mysr.dll "mysr_disconnect"
+
+
+	;--------------------------
 	;-     mysr.tracelog()
 	;
 	;--------------------------
