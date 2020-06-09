@@ -1314,6 +1314,9 @@ slim/register [
 					)
 					| set .spec pair! (
 						v?? .spec 
+						if find blk: .current-options pair [
+							take blk
+						]
 						append .current-options .spec 
 					)
 				]
@@ -1721,6 +1724,30 @@ slim/register [
 	]
 	
 	
+	
+	;--------------------------
+	;-     last-insert-id()
+	;--------------------------
+	; purpose:  
+	;
+	; inputs:   
+	;
+	; returns:  
+	;
+	; notes:    
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	last-insert-id: funcl [
+	][
+		vin "last-insert-id()"
+	 	result: mysql "Select LAST_INSERT_ID();"
+		id: pick result 2
+		vout
+		id
+	]
 	
 	
 	;--------------------------

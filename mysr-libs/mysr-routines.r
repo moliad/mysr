@@ -52,7 +52,6 @@ REBOL [
 ;
 ;--------------------------------------
 slim/register [
-	setcurrentdir to-local-file what-dir
 
 	;-                                                                                                       .
 	;-----------------------------------------------------------------------------------------------------------
@@ -119,6 +118,9 @@ slim/register [
 		path [string!] ; memory buffer to use
 		return: [integer!]
 	] k32.dll "GetCurrentDirectoryA"
+
+	;setcurrentdir to-local-file what-dir
+
 	
 	;--------------------------
 	;-     dlldirpath:

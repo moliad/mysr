@@ -867,6 +867,11 @@ DLL_EXPORT char *mysr_mold_result(MYSQL_RES *result){
 						append(db, mv);
 					}
 				}
+				mv = build(MOLD_LITERAL, "\n");
+				if (mv){
+					append(db, mv);
+				}
+
 				if (breakfetch){
 					vprint("BREAKFETCH DETECTED!");
 					//----
@@ -1053,7 +1058,7 @@ DLL_EXPORT void mysr_release_statement(
 		}
 		free(statement);
 		statement = NULL;
-	}	
+	}
 	vout;
 }
 
