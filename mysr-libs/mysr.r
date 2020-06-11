@@ -462,6 +462,10 @@ slim/register [
 		]
 		default-session: session
 		
+		; we now set the connection character set (independent of the DB charset)
+		mysql "SET NAMES 'latin1';" 
+		
+		
 		vout
 		session
 	]
@@ -794,13 +798,19 @@ slim/register [
 		session: any [ session default-session ]
 		unless session [
 			throw-on-error [
-				to-error "list-dbs() must connect to server first"
+				to-error "mysql() must connect to server first"
 				none
 			]
 		]
-		vprint query
+		
 		if block? query [
 			query: rejoin query
+		]
+		
+		either (length? query) > 400 [
+			vprint [copy/part query 200 " ... " copy/part (skip (tail query) -200) 200]
+		][
+			vprint query
 		]
 		
 		throw-on-error [
@@ -1033,13 +1043,14 @@ slim/register [
 	;
 	;-----------------------------------------------------------------------------------------------------------
 	;--------------------------
-	;-     start()
+	;-     begin()
 	;--------------------------
 	; purpose:  starts a new transaction
 	;--------------------------
-	start: funcl [
+	start: ; deprecated name, kept for backwards compatibility
+	begin: funcl [
 	][
-		vin "start()"
+		vin "begin()"
 		result: mysql "START TRANSACTION;"
 		vout
 		result
@@ -1479,6 +1490,7 @@ slim/register [
 		table	[word!]		"Table to insert into.  must have a current db, connection must have permissions as usual."
 		columns	[block!]	"Columns to use on insert, default values used as normal for unspecified columns."
 		rows	[block!]	"Data to store, types MUST match data"
+		/id 	"returns the last insert id"
 		/using session [integer!]	"insert into an alternate session, must still be connected and have permissions for this DB."
 		/typed types [block!]   "a list of datatypes, if types are not given, we will attempt to insert everything as strings."
 		/atomic "Do not run inside of a transaction (it may already be within one)"
@@ -1690,6 +1702,7 @@ slim/register [
 		]
 		
 		
+		
 		;-----------
 		; if we have a few extra rows of data which don`t fit within the last cluster
 		; we don't want to nest the mysr.bind-statement and mysr.release-statement
@@ -1700,6 +1713,12 @@ slim/register [
 		][
 			; we run an insert-sql with the same setup except cluster is 1
 			success: apply :insert-sql [table columns extra-rows using session typed types true true 1]
+		]
+		
+		if id [
+			vprint "ASKED FOR LAST ID"
+			id: last-insert-id
+			v?? id
 		]
 		
 		unless atomic [
@@ -1720,7 +1739,7 @@ slim/register [
 		vout
 		
 		; all was good
-		true
+		any [id true]
 	]
 	
 	
@@ -1747,6 +1766,88 @@ slim/register [
 		id: pick result 2
 		vout
 		id
+	]
+	
+	
+	;--------------------------
+	;-     select-id()
+	;--------------------------
+	; purpose:  given a SELECT QUERY, expects a single ID as the result.
+	;
+	; inputs:   
+	;
+	; returns:  we return none if the first result cannot be converted to an integer!
+	;
+	; notes:    query is COMPOSED and FORMED if given a block!
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	select-id: funcl [
+		query [string! block!]
+	][
+		vin "select-id()"
+		if block? query [
+			query: form compose query
+		]
+		;v?? query
+		result: mysql query
+		v?? result
+		
+		result: attempt [
+			r: pick result 2
+			any [
+				all [
+					integer? r
+					r
+				]
+				all [
+					string? r
+					i: to-integer r
+					integer? i
+					i
+				]
+			]
+		]
+		
+		v?? result
+		vout
+		
+		result
+	]
+		
+	;--------------------------
+	;-     insert-id()
+	;--------------------------
+	; purpose:  given an INSERT QUERY expects a single ID as the result.
+	;
+	; inputs:   
+	;
+	; returns:  we return none if the first result cannot be converted to an integer!
+	;
+	; notes:    query is COMPOSED and FORMED if given a block!
+	;
+	; to do:    
+	;
+	; tests:    
+	;--------------------------
+	insert-id: funcl [
+		query [string! block!]
+	][
+		vin "insert-id()"
+		if block? query [
+			query: form compose query
+		]
+		
+		mysql query
+		v?? result
+		
+		result-id: last-insert-id
+		v?? result-id
+		vout
+		
+		result-id
 	]
 	
 	
