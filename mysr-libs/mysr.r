@@ -1490,11 +1490,11 @@ slim/register [
 		table	[word!]		"Table to insert into.  must have a current db, connection must have permissions as usual."
 		columns	[block!]	"Columns to use on insert, default values used as normal for unspecified columns."
 		rows	[block!]	"Data to store, types MUST match data"
-		/id 	"returns the last insert id"
 		/using session [integer!]	"insert into an alternate session, must still be connected and have permissions for this DB."
 		/typed types [block!]   "a list of datatypes, if types are not given, we will attempt to insert everything as strings."
 		/atomic "Do not run inside of a transaction (it may already be within one)"
 		/cluster records [integer! word!] "how many records to insert for each call to sql. MUST be more than 0. valid word values: [ ALL ] "
+		/id 	"returns the last insert id"
 		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
 		;  ** ATTENTION ** we use an APPLY within, update it with any change to the spec.
 	][
@@ -1712,7 +1712,7 @@ slim/register [
 			continue? ; all was good we are ready to do the last few rows which don't fit in a single slice.
 		][
 			; we run an insert-sql with the same setup except cluster is 1
-			success: apply :insert-sql [table columns extra-rows using session typed types true true 1]
+			success: apply :insert-sql [table columns extra-rows using session typed types true true 1 id]
 		]
 		
 		if id [
