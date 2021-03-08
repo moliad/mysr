@@ -1578,7 +1578,7 @@ slim/register [
 		unless atomic [START]
 		
 		if error? err: TRY [
-			query: rejoin [ "INSERT INTO `" table "` (" cols ") VALUES " record-sets  ]
+			query: rejoin [ "INSERT INTO " table " (" cols ") VALUES " record-sets  ]
 			statement: mysr.create-statement session query length? query
 			
 			either types [
